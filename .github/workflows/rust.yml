@@ -19,7 +19,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
+        sudo apt-get install -y gcc-aarch64-linux-gnu lld
     - name: Run tests
       run: cargo test --verbose
     - name: Build
@@ -33,10 +33,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
     - name: Run tests
       run: cargo test --verbose
     - name: Build
