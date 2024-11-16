@@ -51,9 +51,16 @@ jobs:
       run: |
         cargo build --verbose --release --target=x86_64-pc-windows-msvc
         cargo build --verbose --release --target=aarch64-pc-windows-msvc
-    - name: ls
-      run: |
-        ls -recurse | ? { $_.name.contains("git-lfs-synology") }
+    - name: Archive Windows x86_64 Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.win-x86_64
+        path: D:\a\git-lfs-synology\git-lfs-synology\target\x86_64-pc-windows-msvc\release\git-lfs-synology.exe
+    - name: Archive Windows aarc64 Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.win-aarch64
+        path: D:\a\git-lfs-synology\git-lfs-synology\target\aarch64-pc-windows-msvc\release\git-lfs-synology.exe
 
   build-macos:
 
