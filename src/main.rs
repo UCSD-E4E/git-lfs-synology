@@ -28,10 +28,43 @@ fn cli() -> Command {
                         .help("The URL for the Synology NAS")
                 )
         )
+        .subcommand(
+            Command::new("logout")
+            .about("Deletes a login for the Synology NAS.")
+            .args_conflicts_with_subcommands(true)
+            .flatten_help(true)
+            .arg(
+                Arg::new("URL")
+                    .short('l')
+                    .long("url")
+                    .required(true)
+                    .help("The URL for the Synology NAS")
+            )
+        )
 }
 
-fn login() {
+fn login(user: &str, url: &str) {
     let credential_manager = CredentialManager { };
+
+    if credential_manager.has_credential(url) {
+        // get password and totp command
+    }
+    else {
+        // get password and totop command
+    }
+
+    // try login
+    // if success store
+
+    // else throw error
+}
+
+fn logout(url: &str) {
+    let credential_manager = CredentialManager { };
+
+    if credential_manager.has_credential(url) {
+        credential_manager.remove_credential(url);
+    }
 }
 
 fn main() {
@@ -39,8 +72,11 @@ fn main() {
 
     match matches.subcommand() {
         Some(("login", _)) => {
-            login();
+            // login();
         },
+        Some(("logout", _)) => {
+            // logout();
+        }
         _ => println!("No subcommand")
     }
 }
