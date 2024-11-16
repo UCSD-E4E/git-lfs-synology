@@ -33,9 +33,16 @@ jobs:
       run: |
         cargo build --verbose --release --target=x86_64-unknown-linux-gnu
         cargo build --verbose --release --target=aarch64-unknown-linux-gnu
-    - name: ls
-      run: |
-        find . -name git-lfs-synology
+    - name: Archive Linux x86_64 Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.linux-x86_64
+        path: ./target/x86_64-unknown-linux-gnu/release/git-lfs-synology
+    - name: Archive Linux aarch64 Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.linux-aarch64
+        path: ./target/aarch64-unknown-linux-gnu/release/git-lfs-synology
 
   build-windows:
 
@@ -80,10 +87,10 @@ jobs:
       run: |
         mkdir -p ./target/universal-apple-darwin/release/
         lipo -create -output ./target/universal-apple-darwin/release/git-lfs-synology ./target/x86_64-apple-darwin/release/git-lfs-synology  ./target/aarch64-apple-darwin/release/git-lfs-synology
-    - name: Archive macOS x64 Results
+    - name: Archive macOS x86_64 Results
       uses: actions/upload-artifact@v4
       with:
-        name: git-lfs-synology.osx-x64
+        name: git-lfs-synology.osx-x86_64
         path: ./target/x86_64-apple-darwin/release/git-lfs-synology
     - name: Archive macOS Apple Silicon Results
       uses: actions/upload-artifact@v4
