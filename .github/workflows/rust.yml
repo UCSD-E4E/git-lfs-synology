@@ -67,6 +67,18 @@ jobs:
       run: |
         mkdir -p ./target/universal-apple-darwin/release/
         lipo -create -output ./target/universal-apple-darwin/release/git-lfs-synology ./target/x86_64-apple-darwin/release/git-lfs-synology  ./target/aarch64-apple-darwin/release/git-lfs-synology
-    - name: ls
-      run: |
-        find . -name git-lfs-synology
+    - name: Archive macOS x64 Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.osx-x64
+        path: ./target/x86_64-apple-darwin/release/git-lfs-synology
+    - name: Archive macOS Apple Silicon Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.osx-x64
+        path: ./target/aarch64-apple-darwin/release/git-lfs-synology
+    - name: Archive macOS Universal Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: git-lfs-synology.osx-x64
+        path: ./target/universal-apple-darwin/release/git-lfs-synology
