@@ -36,12 +36,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Rust Toolchains
-      run: rustup target add x86_64-pc-windows-msvc
+      run: rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
     - name: Run tests
       run: cargo test --verbose
     - name: Build
       run: |
         cargo build --verbose --release --target=x86_64-pc-windows-msvc
+        cargo build --verbose --release --target=aarch64-pc-windows-msvc
 
   build-macos:
 
@@ -57,3 +58,5 @@ jobs:
       run: |
         cargo build --verbose --release --target=aarch64-apple-darwin
         cargo build --verbose --release --target=x86_64-apple-darwin
+    - name: ls
+      run: find . -name git-lfs-synology
