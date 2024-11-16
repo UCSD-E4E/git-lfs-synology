@@ -35,7 +35,7 @@ jobs:
         cargo build --verbose --release --target=aarch64-unknown-linux-gnu
     - name: ls
       run: |
-        find git-lfs-synology -name git-lfs-synology
+        find . -name git-lfs-synology
 
   build-windows:
 
