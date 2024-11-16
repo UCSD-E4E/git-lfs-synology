@@ -33,6 +33,9 @@ jobs:
       run: |
         cargo build --verbose --release --target=x86_64-unknown-linux-gnu
         cargo build --verbose --release --target=aarch64-unknown-linux-gnu
+    - name: ls
+      run: |
+        find git-lfs-synology -name git-lfs-synology
 
   build-windows:
 
@@ -48,6 +51,9 @@ jobs:
       run: |
         cargo build --verbose --release --target=x86_64-pc-windows-msvc
         cargo build --verbose --release --target=aarch64-pc-windows-msvc
+    - name: ls
+      run: |
+        ls -recurse | ? { $_.name.contains("git-lfs-synology") }
 
   build-macos:
 
