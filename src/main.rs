@@ -1,10 +1,9 @@
 use clap::{Command, Arg};
 
-mod commands;
+mod subcommands;
 mod credential_manager;
 
-use commands::{Subcommand, LoginCommand};
-use credential_manager::CredentialManager;
+use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
 
 fn cli() -> Command {
     Command::new("git-lfs-synology")
@@ -45,40 +44,17 @@ fn cli() -> Command {
         )
 }
 
-fn login(user: &str, url: &str) {
-    let credential_manager = CredentialManager { };
-
-    if credential_manager.has_credential(url) {
-        // get password and totp command
-    }
-    else {
-        // get password and totop command
-    }
-
-    // try login
-    // if success store
-
-    // else throw error
-}
-
-fn logout(url: &str) {
-    let credential_manager = CredentialManager { };
-
-    if credential_manager.has_credential(url) {
-        credential_manager.remove_credential(url);
-    }
-}
-
 fn main() {
     let matches = cli().get_matches();
 
     match matches.subcommand() {
         Some(("login", sub_matches)) => {
-            let login_command = LoginCommand { };
+            let login_command = LoginSubcommand { };
             login_command.execute(sub_matches);
         },
-        Some(("logout", _)) => {
-            // logout();
+        Some(("logout", sub_matches)) => {
+            let logout_command = LogoutSubcommand { };
+            logout_command.execute(sub_matches);
         }
         _ => println!("No subcommand")
     }
