@@ -81,10 +81,10 @@ jobs:
     - name: Archive macOS Apple Silicon Results
       uses: actions/upload-artifact@v4
       with:
-        name: git-lfs-synology.osx-x64
+        name: git-lfs-synology.osx-aarch64
         path: ./target/aarch64-apple-darwin/release/git-lfs-synology
     - name: Archive macOS Universal Results
       uses: actions/upload-artifact@v4
       with:
-        name: git-lfs-synology.osx-x64
+        name: git-lfs-synology.osx-universal
         path: ./target/universal-apple-darwin/release/git-lfs-synology
