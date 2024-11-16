@@ -1,7 +1,9 @@
 use clap::{Command, Arg};
 
+mod commands;
 mod credential_manager;
 
+use commands::{Subcommand, LoginCommand};
 use credential_manager::CredentialManager;
 
 fn cli() -> Command {
@@ -71,8 +73,9 @@ fn main() {
     let matches = cli().get_matches();
 
     match matches.subcommand() {
-        Some(("login", _)) => {
-            // login();
+        Some(("login", sub_matches)) => {
+            let login_command = LoginCommand { };
+            login_command.execute(sub_matches);
         },
         Some(("logout", _)) => {
             // logout();
