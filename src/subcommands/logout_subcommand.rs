@@ -21,9 +21,9 @@ impl Subcommand for LogoutSubcommand {
         let url = self.url.as_str();
         let credential_manager = CredentialManager { };
     
-        if credential_manager.has_credential(url) {
-            credential_manager.remove_credential(url);
-        }
+        // if credential_manager.has_credential(url) {
+        //     credential_manager.remove_credential(url);
+        // }
     }
 
     fn parse_args(&mut self, arg_matches: &clap::ArgMatches) -> Option<()> {

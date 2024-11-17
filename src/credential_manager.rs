@@ -1,10 +1,10 @@
 use std::fs::create_dir_all;
 
-use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit};
+use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
 use app_dirs2::{AppDataType, AppInfo, app_root};
 use anyhow::{Result, Context};
 use keyring::Entry;
-use rusqlite::Connection;
+use rusqlite::{Connection, MappedRows};
 
 #[derive(Debug)]
 struct DatabaseCredential {
@@ -12,6 +12,7 @@ struct DatabaseCredential {
     url: String,
     user: String,
     totp_comand_encrypted: Option<Vec<u8>>,
+    totp_nonce: Option<Vec<u8>>
 }
 
 pub struct Credential {
@@ -62,7 +63,8 @@ impl CredentialManager {
                     id                      INTEGER PRIMARY KEY,
                     url                     TEXT NOT NULL,
                     user                TEXT NOT NULL,
-                    totp_command_encrypted  BLOB
+                    totp_command_encrypted  BLOB,
+                    totp_nonce              BLOB
                 )",
                 (), // empty list of parameters.
             )?;
@@ -71,21 +73,27 @@ impl CredentialManager {
         Ok(conn)
     }
 
-    pub fn get_credential(&self, url: &str) -> Result<Credential> {
+    fn get_database_credential_iter(&self, url: &str) -> Result<Vec<DatabaseCredential>> {
         let database = self.get_database()?;
 
         let mut stmt = database.prepare(
-            "SELECT id, url, user, totp_comand_encrypted FROM Credentials WHERE url = ?1")?;
-        let database_credential_iter = stmt.query_map([url], |row| {
+            "SELECT id, url, user, totp_comand_encrypted, totp_nonce FROM Credentials WHERE url=?1")?;
+        let rows: Vec<DatabaseCredential> = stmt.query_map([url], |row| {
             Ok(DatabaseCredential {
                 id: row.get(0)?,
                 url: row.get(1)?,
                 user: row.get(2)?,
-                totp_comand_encrypted: row.get(3)?
+                totp_comand_encrypted: row.get(3)?,
+                totp_nonce: row.get(4)?
             })
-        })?;
+        })?.filter_map(|r| r.ok()).collect::<Vec<DatabaseCredential>>().try_into()?;
 
-        let database_credential = database_credential_iter.last().context("Database does not contain credential.")??;
+        Ok(rows)
+    }
+
+    pub fn get_credential(&self, url: &str) -> Result<Credential> {
+        let database_rows = self.get_database_credential_iter(url)?;
+        let database_credential = database_rows.first().context("No elements returned from database.")?;
         let entry = Entry::new(url, &database_credential.user)?;
 
         let password = entry.get_password()?;
@@ -94,28 +102,71 @@ impl CredentialManager {
         if database_credential.totp_comand_encrypted.is_some() {
             let key: &Key<Aes256Gcm> = password.as_bytes().into();
 
+            let nonce_vec = database_credential.totp_nonce.clone().context("No nonce provided for credential")?;
+
             let cipher = Aes256Gcm::new(&key);
-            let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+            let nonce = Nonce::from_iter(nonce_vec);
             let plaintext = cipher.decrypt(
                 &nonce, 
-                database_credential.totp_comand_encrypted.context("TOTP command is empty.")?.as_ref())?;
+                database_credential.totp_comand_encrypted.clone().context("TOTP command is empty.")?.as_ref())?;
             totp_command = Some(String::from_utf8(plaintext)?);
         }
 
         Ok(Credential::new(&database_credential.user, &password, totp_command))
     }
 
-    pub fn has_credential(&self, url: &str) -> bool {        
-        false
+    pub fn has_credential(&self, url: &str) -> Result<bool> {
+        let database_rows = self.get_database_credential_iter(url)?;
+
+        Ok(!database_rows.is_empty())
     }
 
-    pub fn remove_credential(&self, url: &str) {
-        //self.delete_entry_keyring(url)
+    pub fn remove_credential(&self, url: &str) -> Result<()> {
+        if self.has_credential(url)? {
+            let database_rows = self.get_database_credential_iter(url)?;
+            let database_credential = database_rows.first().context("No elements returned from database.")?;
+
+            let entry = Entry::new(&database_credential.url, &database_credential.user)?;
+            entry.delete_credential()?;
+
+            let database = self.get_database()?;
+
+            database.execute(
+                "DELETE FROM Credentials WHERE url=?1",
+                [url].map(|n| n.to_string()),
+            )?;
+        }
+
+        Ok(())
     }
 
-    pub fn set_credential(&self, url: &str, credential: &Credential) {
+    pub fn set_credential(&self, url: &str, credential: &Credential) -> Result<()> {
+        if self.has_credential(url)? {
+            self.remove_credential(url)?;
+        }
+
+        let mut totp_comand_encrypted: Option<Vec<u8>> = None;
+        let mut totp_nonce: Option<Vec<u8>> = None;
+        if credential.totp_command.is_some() {
+            let key: &Key<Aes256Gcm> = credential.password.as_bytes().into();
+
+            let cipher = Aes256Gcm::new(&key);
+            let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+            let ciphertext = cipher.encrypt(&nonce, credential.totp_command.clone().context("TOTP Command does not exist.")?.as_bytes())?;
+
+            totp_comand_encrypted = Some(ciphertext);
+            totp_nonce = Some(nonce.as_slice().to_vec());
+        }
+
+        let database = self.get_database()?;
+        database.execute(
+            "INSERT INTO Credential (url, user, totp_command_encrypted, totp_nonce) VALUES (?1)",
+            (url.to_string(), credential.user.to_string(), totp_comand_encrypted, totp_nonce),
+        )?;
+
+        let entry = Entry::new(url, &credential.user)?;
+        entry.set_password(&credential.password)?;
         
-
-        // todo insert totp command
+        Ok(())
     }
 }

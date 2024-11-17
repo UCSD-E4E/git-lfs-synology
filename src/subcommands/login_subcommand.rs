@@ -24,12 +24,12 @@ impl Subcommand for LoginSubcommand {
 
         let credential_manager = CredentialManager { };
 
-        if credential_manager.has_credential(url) {
-            // get password and totp command
-        }
-        else {
-            // get password and totop command
-        }
+        // if credential_manager.has_credential(url) {
+        //     // get password and totp command
+        // }
+        // else {
+        //     // get password and totop command
+        // }
 
         // try login
         // if success store
