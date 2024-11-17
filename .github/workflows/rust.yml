@@ -22,7 +22,9 @@ jobs:
         sudo apt-get install -y libdbus-1-dev \
                                 pkg-config
     - name: Install Cross
-      run: cargo install cross --git https://github.com/cross-rs/cross
+      run: |
+        cargo install cross --git https://github.com/cross-rs/cross
+        sudo systemctl start docker
     - name: Setup Cargo Config
       run: |
         mkdir -p .cargo
@@ -35,7 +37,7 @@ jobs:
     - name: Build
       run: |
         cargo build --verbose --release --target=x86_64-unknown-linux-gnu
-        cargo build --verbose --release --target=aarch64-unknown-linux-gnu
+        cross build --verbose --release --target=aarch64-unknown-linux-gnu
     - name: Archive Linux x86_64 Results
       uses: actions/upload-artifact@v4
       with:
