@@ -16,9 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Cat Sources.list
+    - name: Cat /etc/apt/apt-mirrors.txt
       run: |
-        cat /etc/apt/sources.list
+        cat /etc/apt/apt-mirrors.txt
     - name: Install Dependencies
       run: |
         sudo dpkg --add-architecture arm64
