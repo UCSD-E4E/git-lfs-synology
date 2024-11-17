@@ -1,4 +1,8 @@
-use keyring::{Entry, Result};
+use std::path::PathBuf;
+
+use anyhow::Result;
+use keyring::Entry;
+use app_dirs2::{AppDataType, AppInfo, app_root};
 
 pub struct Credential {
     user: String,
@@ -32,10 +36,20 @@ impl CredentialManager {
         Ok(())
     }
 
+    fn get_database_path(&self) -> Result<PathBuf> {
+        let mut path = app_root(AppDataType::UserConfig, &AppInfo{
+            name: "git-lfs-synology",
+            author: "Engineers for Exploration"
+        })?;
+        path.push("credential_store.db");
+
+        Ok(path)
+    }
+
     fn get_entry_keyring(&self, url: &str) -> Result<Entry> {
         let user = "";
 
-        Entry::new(url, user)
+        Ok(Entry::new(url, user)?)
     }
 
     fn get_password(&self, url: &str) -> Result<String> {

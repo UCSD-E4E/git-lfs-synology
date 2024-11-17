@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.93"
+app_dirs2 = "2.5.5"
 clap = "4.5.21"
 futures-macro = "0.3.31"
 keyring = { version = "3.6.1", features = ["apple-native", "windows-native", "sync-secret-service"] }
 rusqlite = "0.32.1"
+thiserror = "2.0.3"
