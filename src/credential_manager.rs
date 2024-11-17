@@ -1,8 +1,9 @@
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::{Path, PathBuf}};
 
-use anyhow::Result;
-use keyring::Entry;
 use app_dirs2::{AppDataType, AppInfo, app_root};
+use anyhow::{Ok, Result, Context};
+use keyring::Entry;
+use rusqlite::Connection;
 
 pub struct Credential {
     user: String,
@@ -29,52 +30,44 @@ pub struct CredentialManager {
 }
 
 impl CredentialManager {
-    fn delete_entry_keyring(&self, url: &str) -> Result<()> {
-        let entry = self.get_entry_keyring(url)?;
-        entry.delete_credential()?;
-
-        Ok(())
-    }
-
-    fn get_database_path(&self) -> Result<PathBuf> {
+    fn get_database(&self, sqlite_path: &Path) -> Result<Connection> {
+        // Get the path to the credential database
         let mut path = app_root(AppDataType::UserConfig, &AppInfo{
             name: "git-lfs-synology",
             author: "Engineers for Exploration"
         })?;
         path.push("credential_store.db");
 
-        Ok(path)
-    }
-
-    fn get_entry_keyring(&self, url: &str) -> Result<Entry> {
-        let user = "";
-
-        Ok(Entry::new(url, user)?)
-    }
-
-    fn get_password(&self, url: &str) -> Result<String> {
-        let entry = self.get_entry_keyring(url)?;
-
-        Ok(entry.get_password()?)
-    }
-
-    fn set_entry_keyring(&self, url: &str, user: &str, password: &str) -> Result<()> {
-        let entry = Entry::new(url, &user)?;
-        entry.set_password(&password)?;
-
-        Ok(())
-    }
-
-    pub fn get_credential(&self, url: &str) -> Option<Credential> {
-        match self.get_password(url) {
-            Ok(password) => {
-                let user = "";
-                let totp_command = Some("");
-
-                Some(Credential::new(user, password.as_str(), None))
-            },
-            Err(error) => None
+        // Create the folder if it doesn't already exist.
+        if !sqlite_path.parent().context("No parent")?.exists(){
+            create_dir_all(sqlite_path.parent().context("No parent")?)?;
         }
+
+        let should_init_database = !sqlite_path.exists();
+        let conn = Connection::open(sqlite_path)?;
+
+        if should_init_database {
+            // TODO Create tables
+        }
+
+        Ok(conn)
+    }
+
+    pub fn get_credential(&self, url: &str) -> Result<Credential> {
+        let user = "";
+        let password = "";
+
+        // match self.get_password(url) {
+        //     Ok(password) => {
+        //         let user = "";
+        //         let totp_command = Some("");
+
+        //         Some(Credential::new(user, password.as_str(), None))
+        //     },
+        //     Err(error) => None
+        // }
+
+        Ok(Credential::new(user, password, None))
     }
 
     pub fn has_credential(&self, url: &str) -> bool {        
