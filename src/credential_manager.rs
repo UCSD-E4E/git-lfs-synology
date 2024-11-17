@@ -1,9 +1,18 @@
-use std::{fs::create_dir_all, path::{Path, PathBuf}};
+use std::fs::create_dir_all;
 
+use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit};
 use app_dirs2::{AppDataType, AppInfo, app_root};
-use anyhow::{Ok, Result, Context};
+use anyhow::{Result, Context};
 use keyring::Entry;
 use rusqlite::Connection;
+
+#[derive(Debug)]
+struct DatabaseCredential {
+    id: i32,
+    url: String,
+    user: String,
+    totp_comand_encrypted: Option<Vec<u8>>,
+}
 
 pub struct Credential {
     user: String,
@@ -12,7 +21,7 @@ pub struct Credential {
 }
 
 impl Credential {
-    pub fn new(user: &str, password: &str, totp_command: Option<&str>) -> Credential {
+    pub fn new(user: &str, password: &str, totp_command: Option<String>) -> Credential {
         let totp_command = match totp_command {
             Some(totp_command) => Some(totp_command.to_string()),
             None => None
@@ -30,13 +39,14 @@ pub struct CredentialManager {
 }
 
 impl CredentialManager {
-    fn get_database(&self, sqlite_path: &Path) -> Result<Connection> {
+    fn get_database(&self) -> Result<Connection> {
         // Get the path to the credential database
         let mut path = app_root(AppDataType::UserConfig, &AppInfo{
             name: "git-lfs-synology",
             author: "Engineers for Exploration"
         })?;
         path.push("credential_store.db");
+        let sqlite_path = path.as_path();
 
         // Create the folder if it doesn't already exist.
         if !sqlite_path.parent().context("No parent")?.exists(){
@@ -47,27 +57,52 @@ impl CredentialManager {
         let conn = Connection::open(sqlite_path)?;
 
         if should_init_database {
-            // TODO Create tables
+            conn.execute(
+                "CREATE TABLE Credentials (
+                    id                      INTEGER PRIMARY KEY,
+                    url                     TEXT NOT NULL,
+                    user                TEXT NOT NULL,
+                    totp_command_encrypted  BLOB
+                )",
+                (), // empty list of parameters.
+            )?;
         }
 
         Ok(conn)
     }
 
     pub fn get_credential(&self, url: &str) -> Result<Credential> {
-        let user = "";
-        let password = "";
+        let database = self.get_database()?;
 
-        // match self.get_password(url) {
-        //     Ok(password) => {
-        //         let user = "";
-        //         let totp_command = Some("");
+        let mut stmt = database.prepare(
+            "SELECT id, url, user, totp_comand_encrypted FROM Credentials WHERE url = ?1")?;
+        let database_credential_iter = stmt.query_map([url], |row| {
+            Ok(DatabaseCredential {
+                id: row.get(0)?,
+                url: row.get(1)?,
+                user: row.get(2)?,
+                totp_comand_encrypted: row.get(3)?
+            })
+        })?;
 
-        //         Some(Credential::new(user, password.as_str(), None))
-        //     },
-        //     Err(error) => None
-        // }
+        let database_credential = database_credential_iter.last().context("Database does not contain credential.")??;
+        let entry = Entry::new(url, &database_credential.user)?;
 
-        Ok(Credential::new(user, password, None))
+        let password = entry.get_password()?;
+        let mut totp_command: Option<String> = None;
+
+        if database_credential.totp_comand_encrypted.is_some() {
+            let key: &Key<Aes256Gcm> = password.as_bytes().into();
+
+            let cipher = Aes256Gcm::new(&key);
+            let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
+            let plaintext = cipher.decrypt(
+                &nonce, 
+                database_credential.totp_comand_encrypted.context("TOTP command is empty.")?.as_ref())?;
+            totp_command = Some(String::from_utf8(plaintext)?);
+        }
+
+        Ok(Credential::new(&database_credential.user, &password, totp_command))
     }
 
     pub fn has_credential(&self, url: &str) -> bool {        

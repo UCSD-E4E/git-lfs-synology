@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+aead = { version = "0.5.2", features = ["std"] }
+aes-gcm = "0.10.3"
 anyhow = "1.0.93"
 app_dirs2 = "2.5.5"
 clap = "4.5.21"
