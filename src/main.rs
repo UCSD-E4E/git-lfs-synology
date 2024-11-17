@@ -49,12 +49,22 @@ fn main() {
 
     match matches.subcommand() {
         Some(("login", sub_matches)) => {
-            let login_command = LoginSubcommand { };
-            login_command.execute(sub_matches);
+            let mut login_command = LoginSubcommand::new();
+            if login_command.parse_args(sub_matches).is_some() {
+                login_command.execute();
+            }
+            else {
+                // TODO: We failed processing
+            }
         },
         Some(("logout", sub_matches)) => {
-            let logout_command = LogoutSubcommand { };
-            logout_command.execute(sub_matches);
+            let mut logout_command = LogoutSubcommand::new();
+            if logout_command.parse_args(sub_matches).is_some() {
+                logout_command.execute();
+            }
+            else {
+                // TODO: We failed processing
+            }
         }
         _ => println!("No subcommand")
     }
