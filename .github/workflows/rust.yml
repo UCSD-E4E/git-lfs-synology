@@ -19,7 +19,8 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libdbus-1-dev \
+        sudo apt-get install -y gcc-aarch64-linux-gnu \
+                                libdbus-1-dev \
                                 pkg-config
     - name: Setup Cargo Config
       run: |
@@ -33,7 +34,7 @@ jobs:
     - name: Build
       run: |
         cargo build --verbose --release --target=x86_64-unknown-linux-gnu
-        cargo build --verbose --release --target=aarch64-unknown-linux-musl
+        cargo build --verbose --release --target=aarch64-unknown-linux-gnu
     - name: Archive Linux x86_64 Results
       uses: actions/upload-artifact@v4
       with:
