@@ -18,44 +18,19 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install Dependencies
       run: |
-        sudo rm /etc/apt/sources.list
-
-        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy main restricted universe" | sudo tee /etc/apt/sources.list
-        echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu/ jammy-security main restricted universe" | sudo tee /etc/apt/sources.list
-        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe" | sudo tee /etc/apt/sources.list
-
-        echo "deb [arch=arm64] http://azure.ports.ubuntu.com/ubuntu-ports/ jammy main restricted multiverse universe" | sudo tee /etc/apt/sources.list
-        echo "deb [arch=arm64] http://azure.ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted multiverse universe" | sudo tee /etc/apt/sources.list
-
-        sudo dpkg --add-architecture arm64
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu:amd64 \
-                                libdbus-1-dev:amd64 \
-                                libdbus-1-dev:arm64 \
+        sudo apt-get install -y libdbus-1-dev \
                                 pkg-config
-    - name: Setup Cargo Config
-      run: |
-        mkdir -p .cargo
-        echo "[target.aarch64-unknown-linux-gnu]" >> ./.cargo/config.toml
-        echo 'linker = "aarch64-linux-gnu-gcc"' >> ./.cargo/config.toml
-    - name: Install Rust Toolchains
-      run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
     - name: Run tests
       run: cargo test --verbose
     - name: Build
       run: |
         cargo build --verbose --release --target=x86_64-unknown-linux-gnu
-        cargo build --verbose --release --target=aarch64-unknown-linux-gnu
     - name: Archive Linux x86_64 Results
       uses: actions/upload-artifact@v4
       with:
         name: git-lfs-synology.linux-x86_64
         path: ./target/x86_64-unknown-linux-gnu/release/git-lfs-synology
-    - name: Archive Linux aarch64 Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: git-lfs-synology.linux-aarch64
-        path: ./target/aarch64-unknown-linux-gnu/release/git-lfs-synology
 
   build-windows:
 
