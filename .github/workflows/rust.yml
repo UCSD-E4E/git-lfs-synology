@@ -16,6 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Cat Sources.list
+      run: |
+        cat /etc/apt/sources.list
     - name: Install Dependencies
       run: |
         sudo dpkg --add-architecture arm64
