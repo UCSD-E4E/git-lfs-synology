@@ -9,5 +9,5 @@ app_dirs2 = "2.5.5"
 clap = "4.5.21"
 futures-macro = "0.3.31"
 keyring = { version = "3.6.1", features = ["apple-native", "windows-native", "sync-secret-service"] }
-rusqlite = "0.32.1"
+rusqlite = { version = "0.32.1", features = ["bundled"]
 thiserror = "2.0.3"
