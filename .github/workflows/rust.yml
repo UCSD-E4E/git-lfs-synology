@@ -16,11 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Cat /etc/apt/apt-mirrors.txt
-      run: |
-        cat /etc/apt/apt-mirrors.txt
     - name: Install Dependencies
       run: |
+        echo "http://mirrors.mit.edu/ubuntu-ports	priority:4" | sudo tee /etc/apt/apt-mirrors.txt
         sudo dpkg --add-architecture arm64
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu \
