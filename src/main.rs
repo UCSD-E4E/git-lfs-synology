@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Command, Arg};
 
 mod subcommands;
@@ -44,28 +45,22 @@ fn cli() -> Command {
         )
 }
 
-fn main() {
+fn main() -> Result<()> {
     let matches = cli().get_matches();
 
     match matches.subcommand() {
         Some(("login", sub_matches)) => {
-            let mut login_command = LoginSubcommand::new();
-            if login_command.parse_args(sub_matches).is_some() {
-                login_command.execute();
-            }
-            else {
-                // TODO: We failed processing
-            }
+            let login_command = LoginSubcommand { };
+            login_command.execute(sub_matches)?;
+
+            Ok(())
         },
         Some(("logout", sub_matches)) => {
-            let mut logout_command = LogoutSubcommand::new();
-            if logout_command.parse_args(sub_matches).is_some() {
-                logout_command.execute();
-            }
-            else {
-                // TODO: We failed processing
-            }
+            let logout_command = LogoutSubcommand { };
+            logout_command.execute(sub_matches)?;
+
+            Ok(())
         }
-        _ => println!("No subcommand")
+        _ => Ok(())
     }
 }

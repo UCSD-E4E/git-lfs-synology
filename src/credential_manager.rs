@@ -4,7 +4,7 @@ use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
 use app_dirs2::{AppDataType, AppInfo, app_root};
 use anyhow::{Result, Context};
 use keyring::Entry;
-use rusqlite::{Connection, MappedRows};
+use rusqlite::Connection;
 
 #[derive(Debug)]
 struct DatabaseCredential {
