@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch",
+            "program": "${workspaceFolder}/target/debug/git-lfs-synology",
+            "args": [
+                "login",
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

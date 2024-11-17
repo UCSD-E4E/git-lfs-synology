@@ -58,11 +58,12 @@ impl CredentialManager {
         let conn = Connection::open(sqlite_path)?;
 
         if should_init_database {
+            println!("Creating table");
             conn.execute(
-                "CREATE TABLE Credentials (
+                "CREATE TABLE IF NOT EXISTS Credentials (
                     id                      INTEGER PRIMARY KEY,
                     url                     TEXT NOT NULL,
-                    user                TEXT NOT NULL,
+                    user                    TEXT NOT NULL,
                     totp_command_encrypted  BLOB,
                     totp_nonce              BLOB
                 )",
@@ -76,9 +77,9 @@ impl CredentialManager {
     fn get_database_credential_iter(&self, url: &str) -> Result<Vec<DatabaseCredential>> {
         let database = self.get_database()?;
 
-        let mut stmt = database.prepare(
-            "SELECT id, url, user, totp_comand_encrypted, totp_nonce FROM Credentials WHERE url=?1")?;
-        let rows: Vec<DatabaseCredential> = stmt.query_map([url], |row| {
+        let mut stmt: rusqlite::Statement<'_> = database.prepare(
+            "SELECT id, url, user, totp_command_encrypted, totp_nonce FROM Credentials WHERE url=:url;")?;
+        let rows: Vec<DatabaseCredential> = stmt.query_map(&[(":url", url)], |row| {
             Ok(DatabaseCredential {
                 id: row.get(0)?,
                 url: row.get(1)?,
@@ -88,7 +89,12 @@ impl CredentialManager {
             })
         })?.filter_map(|r| r.ok()).collect::<Vec<DatabaseCredential>>().try_into()?;
 
-        Ok(rows)
+        drop(stmt); // Allow closing the database.
+
+        match database.close() {
+            Ok(_) => Ok(rows),
+            Err(_) => Err(anyhow::Error::msg("An error occurred closig the database."))
+        }
     }
 
     pub fn get_credential(&self, url: &str) -> Result<Credential> {
@@ -167,6 +173,9 @@ impl CredentialManager {
         let entry = Entry::new(url, &credential.user)?;
         entry.set_password(&credential.password)?;
         
-        Ok(())
+        match database.close() {
+            Ok(_) => Ok(()),
+            Err(_) => Err(anyhow::Error::msg("An error occurred closig the database."))
+        }
     }
 }
