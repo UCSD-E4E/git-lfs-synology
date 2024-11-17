@@ -16,7 +16,7 @@ impl CredentialManager {
     }
 
     pub fn has_credential(&self, url: &str) -> bool {
-        true
+        false
     }
 
     pub fn remove_credential(&self, url: &str) {
