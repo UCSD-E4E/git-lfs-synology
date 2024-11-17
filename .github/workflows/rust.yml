@@ -18,9 +18,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install Dependencies
       run: |
-        head -n 1 /etc/apt/apt-mirrors.txt > ~/apt-mirrors.txt
-        sudo mv ~/apt-mirrors.txt /etc/apt/apt-mirrors.txt
-        echo "http://mirrors.mit.edu/ubuntu-ports	priority:2" | sudo tee /etc/apt/apt-mirrors.txt
+        echo "deb [arch=arm64] http://ports.ubuntu.com/ jammy main multiverse universe" | sudo tee /etc/apt/sources.list
         sudo dpkg --add-architecture arm64
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu \
