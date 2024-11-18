@@ -12,7 +12,7 @@ impl Subcommand for LoginSubcommand {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
         let user = arg_matches.get_one::<String>("USER").context("USER not provided.")?;
 
-        let credential_manager = CredentialManager { };
+        let credential_manager = CredentialManager::new();
 
         if !credential_manager.has_credential(url)? {
             // TODO need to ask for password from user

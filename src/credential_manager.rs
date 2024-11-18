@@ -1,4 +1,4 @@
-use std::fs::create_dir_all;
+use std::{fs::create_dir_all, process::Command};
 
 use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
 use app_dirs2::{AppDataType, AppInfo, app_root};
@@ -23,15 +23,28 @@ pub struct Credential {
 
 impl Credential {
     pub fn new(user: &str, password: &str, totp_command: Option<String>) -> Credential {
-        let totp_command = match totp_command {
-            Some(totp_command) => Some(totp_command.to_string()),
-            None => None
-        };
-
         Credential {
             user: user.to_string(),
             password: password.to_string(),
             totp_command
+        }
+    }
+
+    pub fn totp(&self) -> Option<String> {
+        match self.totp_command.clone() {
+            Some(totp_command) => {
+                let parts = totp_command.split(" ").collect::<Vec<&str>>();
+                let command = parts.first()?.to_string();
+                let args = totp_command[..command.len()].to_string();
+
+                let output = Command::new(command)
+                     .arg(args)
+                     .output()
+                     .expect("failed to execute process");
+
+                Some(String::from_utf8_lossy(&output.stdout).to_string())
+            },
+            None => None
         }
     }
 }
@@ -40,6 +53,10 @@ pub struct CredentialManager {
 }
 
 impl CredentialManager {
+    pub fn new() -> CredentialManager {
+        CredentialManager { }
+    }
+
     fn get_database(&self) -> Result<Connection> {
         // Get the path to the credential database
         let mut path = app_root(AppDataType::UserConfig, &AppInfo{
@@ -177,5 +194,15 @@ impl CredentialManager {
             Ok(_) => Ok(()),
             Err(_) => Err(anyhow::Error::msg("An error occurred closig the database."))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CredentialManager;
+
+    #[test]
+    fn create_credential_manager() {
+        let credential_manager = CredentialManager::new();
     }
 }
