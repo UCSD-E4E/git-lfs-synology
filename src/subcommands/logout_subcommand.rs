@@ -11,7 +11,7 @@ impl Subcommand for LogoutSubcommand {
     fn execute(&self, arg_matches: &ArgMatches) -> Result<()> {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
 
-        let credential_manager = CredentialManager::new();
+        let mut credential_manager = CredentialManager::new()?;
         credential_manager.remove_credential(url)?;
 
         Ok(())
