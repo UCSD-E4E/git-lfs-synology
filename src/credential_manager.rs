@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs::create_dir_all, process::Command};
 use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
 use app_dirs2::{AppDataType, AppInfo, app_root};
 use anyhow::{Result, Context};
-use keyring::{credential, Entry};
+use keyring::Entry;
 use rusqlite::Connection;
 
 #[derive(Debug)]
@@ -14,22 +14,13 @@ struct DatabaseCredential {
 }
 
 pub struct Credential {
-    user: String,
-    password: String,
-    totp_command: Option<String>
+    pub user: String,
+    pub password: String,
+    pub totp_command: Option<String>
 }
 
 impl Credential {
-    pub fn new(user: &str, password: &str, totp_command: Option<&str>) -> Credential {
-        let totp_command = match totp_command {
-            Some(totp_command) => Some(totp_command.to_string()),
-            None => None
-        };
-
-        Credential::new_with_string(user.to_string(), password.to_string(), totp_command)
-    }
-
-    pub fn new_with_string(user: String, password: String, totp_command: Option<String>) -> Credential {
+    pub fn new(user: String, password: String, totp_command: Option<String>) -> Credential {
         Credential {
             user,
             password,
@@ -163,7 +154,7 @@ impl CredentialManager {
             totp_command = Some(String::from_utf8(plaintext)?);
         }
 
-        Ok(Some(Credential::new_with_string(database_credential.user.clone(), password, totp_command)))
+        Ok(Some(Credential::new(database_credential.user.clone(), password, totp_command)))
     }
 
     pub fn has_credential(&self, url: &str) -> Result<bool> {
@@ -238,6 +229,15 @@ mod tests {
 
     use super::{CredentialManager, Credential};
 
+    fn new_credential(user: &str, password: &str, totp_command: Option<&str>) -> Credential {
+        let totp_command = match totp_command {
+            Some(totp_command) => Some(totp_command.to_string()),
+            None => None
+        };
+
+        Credential::new(user.to_string(), password.to_string(), totp_command)
+    }
+
     #[test]
     fn create_credential_manager() {
         let _ = CredentialManager::new();
@@ -252,7 +252,7 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", None)).unwrap();
+        credential_manager.set_credential("http://example.com", &&new_credential("test_user", "test_password", None)).unwrap();
 
         let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
 
@@ -270,7 +270,7 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", Some("echo 12345"))).unwrap();
+        credential_manager.set_credential("http://example.com", &&new_credential("test_user", "test_password", Some("echo 12345"))).unwrap();
 
         let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
 
@@ -288,7 +288,7 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", Some("echo 12345"))).unwrap();
+        credential_manager.set_credential("http://example.com", &&new_credential("test_user", "test_password", Some("echo 12345"))).unwrap();
 
         assert!(credential_manager.has_credential("http://example.com").unwrap());
     }
@@ -302,9 +302,9 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", Some("echo 12345"))).unwrap();
+        credential_manager.set_credential("http://example.com", &new_credential("test_user", "test_password", Some("echo 12345"))).unwrap();
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password2", None)).unwrap();
+        credential_manager.set_credential("http://example.com", &new_credential("test_user", "test_password2", None)).unwrap();
 
         let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
 
@@ -322,9 +322,9 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", Some("echo 12345"))).unwrap();
+        credential_manager.set_credential("http://example.com", &new_credential("test_user", "test_password", Some("echo 12345"))).unwrap();
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password2", Some("echo 123456"))).unwrap();
+        credential_manager.set_credential("http://example.com", &new_credential("test_user", "test_password2", Some("echo 123456"))).unwrap();
 
         let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
 
@@ -342,7 +342,7 @@ mod tests {
             entry_cache: HashMap::new()
         };
 
-        credential_manager.set_credential("http://example.com", &Credential::new("test_user", "test_password", Some("echo 12345"))).unwrap();
+        credential_manager.set_credential("http://example.com", &new_credential("test_user", "test_password", Some("echo 12345"))).unwrap();
         credential_manager.remove_credential("http://example.com").unwrap();
 
         assert!(!credential_manager.has_credential("http://example.com").unwrap());
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn totp() {
-        let credential = Credential::new("test_user", "test_password", Some("echo 12345"));
+        let credential = new_credential("test_user", "test_password", Some("echo 12345"));
         let totp = credential.totp().context("totp should not be null").unwrap();
 
         assert_eq!(totp, "12345".to_string())
