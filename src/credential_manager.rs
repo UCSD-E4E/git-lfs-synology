@@ -8,7 +8,6 @@ use rusqlite::Connection;
 
 #[derive(Debug)]
 struct DatabaseCredential {
-    url: String,
     user: String,
     totp_comand_encrypted: Option<Vec<u8>>,
     totp_nonce: Option<Vec<u8>>
@@ -43,14 +42,14 @@ impl Credential {
             Some(totp_command) => {
                 let parts = totp_command.split(" ").collect::<Vec<&str>>();
                 let command = parts.first()?.to_string();
-                let args = totp_command[..command.len()].to_string();
+                let args = totp_command[command.len()..].to_string();
 
                 let output = Command::new(command)
                      .arg(args)
                      .output()
                      .expect("failed to execute process");
 
-                Some(String::from_utf8_lossy(&output.stdout).to_string())
+                Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
             },
             None => None
         }
@@ -91,13 +90,12 @@ impl CredentialManager {
         let database = self.get_database()?;
 
         let mut stmt: rusqlite::Statement<'_> = database.prepare(
-            "SELECT url, user, totp_command_encrypted, totp_nonce FROM Credentials WHERE url=:url;")?;
+            "SELECT user, totp_command_encrypted, totp_nonce FROM Credentials WHERE url=:url;")?;
         let rows: Vec<DatabaseCredential> = stmt.query_map(&[(":url", url)], |row| {
             Ok(DatabaseCredential {
-                url: row.get(0)?,
-                user: row.get(1)?,
-                totp_comand_encrypted: row.get(2)?,
-                totp_nonce: row.get(3)?
+                user: row.get(0)?,
+                totp_comand_encrypted: row.get(1)?,
+                totp_nonce: row.get(2)?
             })
         })?.filter_map(|r| r.ok()).collect::<Vec<DatabaseCredential>>().try_into()?;
         
@@ -348,5 +346,13 @@ mod tests {
         credential_manager.remove_credential("http://example.com").unwrap();
 
         assert!(!credential_manager.has_credential("http://example.com").unwrap());
+    }
+
+    #[test]
+    fn totp() {
+        let credential = Credential::new("test_user", "test_password", Some("echo 12345"));
+        let totp = credential.totp().context("totp should not be null").unwrap();
+
+        assert_eq!(totp, "12345".to_string())
     }
 }
