@@ -71,6 +71,7 @@ pub enum SynologyError {
     NoSuchTaskOfTheFileOperation = 599
 }
 
+#[derive(Debug)]
 pub struct SynologyFileStation {
     url: String
 }
@@ -82,6 +83,7 @@ impl SynologyFileStation {
         }
     }
 
+    #[tracing::instrument]
     pub fn login(&self, credential: &Credential) -> Result<(), SynologyError> {
         let totp = credential.totp();
 

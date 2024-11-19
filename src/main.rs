@@ -6,7 +6,23 @@ mod credential_manager;
 mod synology_file_station;
 
 use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
+use tracing_appender::rolling;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 
+fn setup_logging() {
+    let log_file = rolling::daily("./logs", "log").with_max_level(tracing::Level::INFO);
+
+    tracing_subscriber::fmt()
+        .compact()
+        .with_file(true)
+        .with_line_number(true)
+        .with_thread_ids(true)
+        .with_target(false)
+        .with_writer(log_file)
+        .init();
+}
+
+#[tracing::instrument]
 fn cli() -> Command {
     Command::new("git-lfs-synology")
         .about("This is an implementation of a git lfs custom transfer agent. See https://github.com/git-lfs/git-lfs/blob/main/docs/custom-transfers.md for more information.")
@@ -53,6 +69,8 @@ fn cli() -> Command {
 }
 
 fn main() -> Result<()> {
+    setup_logging();
+
     let matches = cli().get_matches();
 
     match matches.subcommand() {
