@@ -3,6 +3,7 @@ use clap::{Command, Arg};
 
 mod subcommands;
 mod credential_manager;
+mod synology_file_station;
 
 use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
 

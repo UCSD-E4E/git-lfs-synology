@@ -3,6 +3,7 @@ use clap::ArgMatches;
 
 use crate::subcommands::Subcommand;
 use crate::credential_manager::{Credential, CredentialManager};
+use crate::synology_file_station::SynologyFileStation;
 
 pub struct LoginSubcommand {
 }
@@ -43,14 +44,15 @@ impl Subcommand for LoginSubcommand {
             password.clone(),
             totp_command);
 
-        credential_manager.set_credential(url, &credential)?;
+        let file_station = SynologyFileStation::new(url);
+        let result = file_station.login(&credential);
 
-        let _ = credential.totp();
-
-        // try login
-        // if success store
-
-        // else throw error
+        match result {
+            Ok(_) => credential_manager.set_credential(url, &credential),
+            Err(error) => match error {
+                _ => Err(error).map_err(anyhow::Error::msg)
+            }
+        }?;
 
         Ok(())
     }
