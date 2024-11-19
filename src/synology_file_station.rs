@@ -2,12 +2,7 @@ use thiserror::Error;
 
 use crate::credential_manager::Credential;
 
-/*
-100 Unknown error
-101 No parameter of API, method or version
-102 The requested API does not exist
- */
-
+#[allow(dead_code)] // We will allow dead code here since these can be used for error checking with Synology.
 #[derive(Error, Debug)]
 pub enum SynologyError {
     #[error("Unknown error")]
