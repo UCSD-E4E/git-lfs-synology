@@ -7,7 +7,7 @@ use tracing_subscriber::fmt::writer::MakeWriterExt;
 mod config_dir;
 mod subcommands;
 mod credential_manager;
-mod synology_file_station;
+mod synology_api;
 
 use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
 
@@ -73,7 +73,8 @@ fn cli() -> Command {
         )
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     setup_logging()?;
 
     let matches = cli().get_matches();
@@ -81,13 +82,13 @@ fn main() -> Result<()> {
     match matches.subcommand() {
         Some(("login", sub_matches)) => {
             let login_command = LoginSubcommand { };
-            login_command.execute(sub_matches)?;
+            login_command.execute(sub_matches).await?;
 
             Ok(())
         },
         Some(("logout", sub_matches)) => {
             let logout_command = LogoutSubcommand { };
-            logout_command.execute(sub_matches)?;
+            logout_command.execute(sub_matches).await?;
 
             Ok(())
         }

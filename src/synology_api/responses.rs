@@ -1,10 +1,12 @@
+use num_derive::FromPrimitive;
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
-use crate::credential_manager::Credential;
 
 #[allow(dead_code)] // We will allow dead code here since these can be used for error checking with Synology.
 #[derive(Error, Debug)]
-pub enum SynologyError {
+#[derive(FromPrimitive)]
+pub enum SynologyStatusCode {
     #[error("Unknown error")]
     UnknownError = 100,
     #[error("No parameter of API, method or version")]
@@ -71,22 +73,41 @@ pub enum SynologyError {
     NoSuchTaskOfTheFileOperation = 599
 }
 
-#[derive(Debug)]
-pub struct SynologyFileStation {
-    url: String
+#[derive(Error, Debug)]
+pub enum SynologyError {
+    #[error("Error occurred on Synology.")]
+    ServerError(SynologyStatusCode),
+    #[error("HTTP error occurred.")]
+    HttpError(StatusCode),
+    #[error("Reqwest threw an error.")]
+    ReqwestError(reqwest::Error),
+    #[error("Serde threw an error.")]
+    SerdeError(serde_json::Error),
+    #[error("An unknown error occurred.")]
+    UnknownError
 }
 
-impl SynologyFileStation {
-    pub fn new(url: &str) -> SynologyFileStation {
-        SynologyFileStation {
-            url: url.to_string()
-        }
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SynologyPartial {
+    pub success: bool
+}
 
-    #[tracing::instrument]
-    pub fn login(&self, credential: &Credential) -> Result<(), SynologyError> {
-        let totp = credential.totp();
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SynologyResult<T> {
+    pub success: bool,
+    pub data: T
+}
 
-        Ok(())
-    }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SynologyResponseError {
+    pub code: u32
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct LoginResult {
+    pub sid: String
 }

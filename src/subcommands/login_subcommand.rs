@@ -3,7 +3,7 @@ use clap::ArgMatches;
 
 use crate::subcommands::Subcommand;
 use crate::credential_manager::{Credential, CredentialManager};
-use crate::synology_file_station::SynologyFileStation;
+use crate::synology_api::SynologyFileStation;
 
 #[derive(Debug)]
 pub struct LoginSubcommand {
@@ -11,7 +11,7 @@ pub struct LoginSubcommand {
 
 impl Subcommand for LoginSubcommand {
     #[tracing::instrument]
-    fn execute(&self, arg_matches: &ArgMatches) -> Result<()> {
+    async fn execute(&self, arg_matches: &ArgMatches) -> Result<()> {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
         let user = arg_matches.get_one::<String>("USER").context("USER not provided.")?;
         let totp_command = arg_matches.get_one::<String>("TOTP_COMMAND");
@@ -46,15 +46,8 @@ impl Subcommand for LoginSubcommand {
             password.clone(),
             totp_command);
 
-        let file_station = SynologyFileStation::new(url);
-        let result = file_station.login(&credential);
-
-        match result {
-            Ok(_) => credential_manager.set_credential(url, &credential),
-            Err(error) => match error {
-                _ => Err(error).map_err(anyhow::Error::msg)
-            }
-        }?;
+        let mut file_station = SynologyFileStation::new(url);
+        file_station.login(&credential).await?;
 
         Ok(())
     }
