@@ -1,16 +1,19 @@
 use anyhow::Result;
 use clap::{Command, Arg};
+use config_dir::get_config_dir;
+use tracing_appender::rolling;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
 
+mod config_dir;
 mod subcommands;
 mod credential_manager;
 mod synology_file_station;
 
 use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
-use tracing_appender::rolling;
-use tracing_subscriber::fmt::writer::MakeWriterExt;
 
-fn setup_logging() {
-    let log_file = rolling::daily("./logs", "log").with_max_level(tracing::Level::INFO);
+fn setup_logging() -> Result<()> {
+    let config_path = get_config_dir()?;
+    let log_file = rolling::daily(config_path, "log").with_max_level(tracing::Level::INFO);
 
     tracing_subscriber::fmt()
         .compact()
@@ -20,6 +23,8 @@ fn setup_logging() {
         .with_target(false)
         .with_writer(log_file)
         .init();
+
+    Ok(())
 }
 
 #[tracing::instrument]
@@ -69,7 +74,7 @@ fn cli() -> Command {
 }
 
 fn main() -> Result<()> {
-    setup_logging();
+    setup_logging()?;
 
     let matches = cli().get_matches();
 

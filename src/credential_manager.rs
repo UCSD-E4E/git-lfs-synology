@@ -1,11 +1,12 @@
 use std::{collections::HashMap, fs::create_dir_all, process::Command};
 
 use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
-use app_dirs2::{AppDataType, AppInfo, app_root};
 use anyhow::{Result, Context};
 use keyring::Entry;
 use rusqlite::Connection;
 use tracing::{debug, info};
+
+use crate::config_dir::get_config_dir;
 
 #[derive(Debug)]
 struct DatabaseCredential {
@@ -73,10 +74,7 @@ impl CredentialManager {
     #[tracing::instrument]
     fn get_connection() -> Result<Connection> {
         // Get the path to the credential database
-        let mut path = app_root(AppDataType::UserConfig, &AppInfo{
-            name: "git-lfs-synology",
-            author: "Engineers for Exploration"
-        })?;
+        let mut path = get_config_dir()?;
         path.push("credential_store.db");
         let sqlite_path = path.as_path();
 
