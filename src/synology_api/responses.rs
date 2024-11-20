@@ -3,7 +3,6 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[allow(dead_code)] // We will allow dead code here since these can be used for error checking with Synology.
 #[derive(Error, Debug)]
 #[derive(FromPrimitive)]
 pub enum SynologyStatusCode {
