@@ -24,6 +24,8 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
     }
 
     pub async fn listen(&mut self) -> Result<()> {
+        // todo parse from stdin in a loop.
+
         self.custom_transfer_agent.init().await?;
 
         Ok(())
