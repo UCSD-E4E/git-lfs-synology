@@ -12,6 +12,7 @@ struct Event {
     concurrent: bool
 }
 
+#[derive(Debug)]
 pub struct GitLfsParser<'custom_transfer_agent, T: CustomTransferAgent> {
     custom_transfer_agent: &'custom_transfer_agent mut T
 }

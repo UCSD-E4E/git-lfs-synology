@@ -12,7 +12,7 @@ pub struct MainSubcommand {
 
 impl CustomTransferAgent for MainSubcommand {
     async fn init(&mut self) -> Result<()> {
-        // Init credential manager
+        self.credential_manager = Some(CredentialManager::new()?);
         // Init synology api
 
         Ok(())
