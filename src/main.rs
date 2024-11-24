@@ -5,11 +5,12 @@ use tracing_appender::rolling;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 mod config_dir;
-mod subcommands;
 mod credential_manager;
+mod git_lfs;
+mod subcommands;
 mod synology_api;
 
-use subcommands::{LoginSubcommand, LogoutSubcommand, Subcommand};
+use subcommands::{LoginSubcommand, LogoutSubcommand, MainSubcommand, Subcommand};
 
 fn setup_logging() -> Result<()> {
     let config_path = get_config_dir()?;
@@ -81,17 +82,23 @@ async fn main() -> Result<()> {
 
     match matches.subcommand() {
         Some(("login", sub_matches)) => {
-            let login_command = LoginSubcommand { };
+            let mut login_command = LoginSubcommand { };
             login_command.execute(sub_matches).await?;
 
             Ok(())
         },
         Some(("logout", sub_matches)) => {
-            let logout_command = LogoutSubcommand { };
+            let mut logout_command = LogoutSubcommand { };
             logout_command.execute(sub_matches).await?;
 
             Ok(())
         }
-        _ => Ok(())
+        _ => {
+            // This is the subcommand that handles being called from git.
+            let mut main_command = MainSubcommand::new();
+            main_command.execute(&matches).await?;
+
+            Ok(())
+        }
     }
 }

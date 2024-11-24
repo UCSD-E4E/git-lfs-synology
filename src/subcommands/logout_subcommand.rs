@@ -10,7 +10,7 @@ pub struct LogoutSubcommand {
 
 impl Subcommand for LogoutSubcommand {
     #[tracing::instrument]
-    async fn execute(&self, arg_matches: &ArgMatches) -> Result<()> {
+    async fn execute(&mut self, arg_matches: &ArgMatches) -> Result<()> {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
 
         let mut credential_manager = CredentialManager::new()?;

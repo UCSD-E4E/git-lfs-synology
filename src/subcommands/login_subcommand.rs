@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 
-use crate::subcommands::Subcommand;
 use crate::credential_manager::{Credential, CredentialManager};
 use crate::synology_api::SynologyFileStation;
+
+use super::Subcommand;
 
 #[derive(Debug)]
 pub struct LoginSubcommand {
@@ -11,7 +12,7 @@ pub struct LoginSubcommand {
 
 impl Subcommand for LoginSubcommand {
     #[tracing::instrument]
-    async fn execute(&self, arg_matches: &ArgMatches) -> Result<()> {
+    async fn execute(&mut self, arg_matches: &ArgMatches) -> Result<()> {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
         let user = arg_matches.get_one::<String>("USER").context("USER not provided.")?;
         let totp_command = arg_matches.get_one::<String>("TOTP_COMMAND");
