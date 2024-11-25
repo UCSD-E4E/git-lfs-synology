@@ -6,7 +6,7 @@ use keyring::Entry;
 use rusqlite::Connection;
 use tracing::{debug, info};
 
-use crate::config_dir::get_config_dir;
+use crate::users_dirs::get_config_dir;
 
 #[derive(Debug)]
 struct DatabaseCredential {

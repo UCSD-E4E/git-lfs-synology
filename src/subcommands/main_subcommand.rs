@@ -1,19 +1,27 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::ArgMatches;
 
-use crate::{credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, Event, GitLfsParser}};
+use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, Event, GitLfsParser}, synology_api::SynologyFileStation};
 
 use super::Subcommand;
 
 #[derive(Debug)]
 pub struct MainSubcommand {
-    credential_manager: Option<CredentialManager>
+    file_station: Option<SynologyFileStation>
 }
 
 impl CustomTransferAgent for MainSubcommand {
     async fn init(&mut self, _: &Event) -> Result<()> {
-        self.credential_manager = Some(CredentialManager::new()?);
-        // Init synology api
+        let configuration = Configuration::load()?;
+        let mut credential_manager = CredentialManager::new()?;
+
+        let nas_url = configuration.nas_url.as_str();
+        let mut file_station = SynologyFileStation::new(nas_url);
+
+        let credential = credential_manager.get_credential(nas_url)?.context("Credential should not be null")?;
+        file_station.login(&credential).await?;
+
+        self.file_station = Some(file_station);
 
         Ok(())
     }
@@ -32,7 +40,7 @@ impl Subcommand for MainSubcommand {
 impl MainSubcommand {
     pub fn new() -> MainSubcommand {
         MainSubcommand {
-            credential_manager: None
+            file_station: None
         }
     }
 }

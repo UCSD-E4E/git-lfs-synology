@@ -1,14 +1,15 @@
 use anyhow::Result;
 use clap::{Command, Arg};
-use config_dir::get_config_dir;
+use users_dirs::get_config_dir;
 use tracing_appender::rolling;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
-mod config_dir;
+mod configuration;
 mod credential_manager;
 mod git_lfs;
 mod subcommands;
 mod synology_api;
+mod users_dirs;
 
 use subcommands::{LoginSubcommand, LogoutSubcommand, MainSubcommand, Subcommand};
 
