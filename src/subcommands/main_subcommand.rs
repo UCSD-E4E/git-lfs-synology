@@ -25,6 +25,12 @@ impl CustomTransferAgent for MainSubcommand {
 
         Ok(())
     }
+
+    async fn terminate(&mut self) -> Result<()> {
+        // No cleanup to do.
+
+        Ok(())
+    }
 }
 
 impl Subcommand for MainSubcommand {

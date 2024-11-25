@@ -5,12 +5,33 @@ use serde::{Deserialize, Serialize};
 
 use super::CustomTransferAgent;
 
+pub fn error(code: u32, message: &str) -> Result<()> {
+    let error_json = ErrorJson {
+        error: ErrorJsonInner {
+            code,
+            message: message.to_string()
+        }
+    };
+
+    println!("{}", serde_json::to_string(&error_json)?);
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct EventJson {
-    event: String,
-    operation: String,
-    remote: String,
-    concurrent: bool
+struct EventJsonPartial {
+    event: String
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ErrorJson {
+    error: ErrorJsonInner
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct ErrorJsonInner {
+    code: u32,
+    message: String
 }
 
 pub struct Event {
@@ -21,7 +42,8 @@ pub struct Event {
 }
 
 pub enum EventType {
-    Init
+    Init,
+    Terminate
 }
 
 // pub enum EventOperation {
@@ -41,9 +63,10 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         }
     }
 
-    fn parse(&self, event: &EventJson) -> Result<Event> {
+    fn parse(&self, event: &EventJsonPartial) -> Result<Event> {
         let event_type = match event.event.as_str() {
             "init" => EventType::Init,
+            "terminate" => EventType::Terminate,
             _ => bail!("Event type was \"{}\". Value unexpected.", event.event)
         };
 
@@ -66,13 +89,33 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         let stdin = io::stdin();
 
         stdin.read_line(&mut buffer)?;
-        let event = self.parse(&serde_json::from_str::<EventJson>(buffer.as_str())?)?;
+        let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
 
-        match event.event {
-            EventType::Init => self.custom_transfer_agent.init(&event).await?
+        let init_result = match event.event {
+            EventType::Init => self.custom_transfer_agent.init(&event).await,
+            _ => bail!("Event type was not init.")
+        };
+
+        match init_result {
+            Ok(_) => println!("{{ }}"), // success
+            Err(err) => error(1, err.to_string().as_str())? // an error occurred
         }
 
-        // todo parse from stdin in a loop.
+        loop {
+            stdin.read_line(&mut buffer)?;
+            let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
+
+            match event.event {
+                // TODO handle other event types
+
+                EventType::Terminate => {
+                    self.custom_transfer_agent.terminate().await?;
+
+                    break;
+                },
+                _ => bail!("Event type not supported in context.")
+            }
+        }
 
         Ok(())
     }
