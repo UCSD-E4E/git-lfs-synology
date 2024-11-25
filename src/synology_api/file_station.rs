@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::credential_manager::Credential;
 
-use super::responses::{LoginResult, SynologyError, SynologyPartial, SynologyResponseError, SynologyResult};
+use super::responses::{LoginResult, SynologyError, SynologyPartial, SynologyResponseError, SynologyResponseErrorInner, SynologyResult};
 
 #[derive(Debug)]
 pub struct SynologyFileStation {
@@ -48,11 +48,11 @@ impl SynologyFileStation {
                                             }
                                         }
                                         else {
-                                            let result = serde_json::from_str::<SynologyResult<SynologyResponseError>>(text.as_str());
+                                            let result = serde_json::from_str::<SynologyResponseError<SynologyResponseErrorInner>>(text.as_str());
 
                                             match result {
                                                 Ok(result) => 
-                                                    match FromPrimitive::from_u32(result.data.code) {
+                                                    match FromPrimitive::from_u32(result.error.code) {
                                                         Some(code) => Err(SynologyError::ServerError(code)),
                                                         None => Err(SynologyError::UnknownError)
                                                     },

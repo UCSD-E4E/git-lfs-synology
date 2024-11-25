@@ -75,13 +75,13 @@ pub enum SynologyStatusCode {
 #[derive(Error, Debug)]
 pub enum SynologyError {
     #[error("Error occurred on Synology.")]
-    ServerError(SynologyStatusCode),
+    ServerError(#[from] SynologyStatusCode),
     #[error("HTTP error occurred.")]
     HttpError(StatusCode),
     #[error("Reqwest threw an error.")]
-    ReqwestError(reqwest::Error),
+    ReqwestError(#[from] reqwest::Error),
     #[error("Serde threw an error.")]
-    SerdeError(serde_json::Error),
+    SerdeError(#[from] serde_json::Error),
     #[error("An unknown error occurred.")]
     UnknownError
 }
@@ -101,7 +101,14 @@ pub struct SynologyResult<T> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct SynologyResponseError {
+pub struct SynologyResponseError<T> {
+    pub success: bool,
+    pub error: T
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SynologyResponseErrorInner {
     pub code: u32
 }
 

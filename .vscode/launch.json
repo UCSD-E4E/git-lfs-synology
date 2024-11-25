@@ -8,6 +8,10 @@
             "program": "${workspaceFolder}/target/debug/git-lfs-synology",
             "args": [
                 "login",
+                "--url",
+                "https://e4e-nas.ucsd.edu:6021",
+                "--user",
+                "<user>"
             ],
             "cwd": "${workspaceFolder}"
         }

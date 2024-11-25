@@ -42,8 +42,8 @@ impl Credential {
                 let args = totp_command[command.len()..].to_string();
 
                 debug!("Executing TOTP command.");
-                let output = Command::new(command)
-                     .arg(args)
+                let output = Command::new(command.as_str())
+                     .arg(args.as_str())
                      .output()
                      .expect("failed to execute process");
 
@@ -69,6 +69,15 @@ impl CredentialManager {
             connection: CredentialManager::get_connection()?,
             entry_cache: HashMap::new()
         })
+    }
+
+    #[tracing::instrument]
+    fn clean_url(&self, url: &str) -> String {
+        if url.ends_with("/") {
+            return url[..url.len() - 1].to_string();
+        }
+        
+        return url.to_string();
     }
 
     #[tracing::instrument]
@@ -153,6 +162,9 @@ impl CredentialManager {
 
     #[tracing::instrument]
     pub fn get_credential(&mut self, url: &str) -> Result<Option<Credential>> {
+        let url_string = self.clean_url(url);
+        let url= url_string.as_str();
+
         if !self.has_credential(url)? {
             debug!(url=url, "Entry did not exist in sqlite database.");
             return Ok(None);
@@ -190,6 +202,9 @@ impl CredentialManager {
 
     #[tracing::instrument]
     pub fn has_credential(&self, url: &str) -> Result<bool> {
+        let url_string = self.clean_url(url);
+        let url= url_string.as_str();
+
         let database_rows = self.get_database_credential_iter(url)?;
 
         Ok(!database_rows.is_empty())
@@ -197,6 +212,9 @@ impl CredentialManager {
 
     #[tracing::instrument]
     pub fn remove_credential(&mut self, url: &str) -> Result<()> {
+        let url_string = self.clean_url(url);
+        let url= url_string.as_str();
+
         if self.has_credential(url)? {
             debug!(url=url, "Entry found in sqlite database.");
 
@@ -222,6 +240,9 @@ impl CredentialManager {
 
     #[tracing::instrument]
     pub fn set_credential(&mut self, url: &str, credential: &Credential) -> Result<()> {
+        let url_string = self.clean_url(url);
+        let url= url_string.as_str();
+
         if self.has_credential(url)? {
             debug!("Credential exists already.  Removing it before continuing.");
             self.remove_credential(url)?;
@@ -297,6 +318,24 @@ mod tests {
         };
 
         credential_manager.set_credential("http://example.com", &&new_credential("test_user", "test_password", None)).unwrap();
+
+        let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
+
+        assert_eq!(credential.user, "test_user".to_string());
+        assert_eq!(credential.password, "test_password".to_string());
+        assert_eq!(credential.totp_command, None);
+    }
+
+    #[test]
+    fn set_get_credential_no_totp_command_with_slash() {
+        set_default_credential_builder(mock::default_credential_builder()); // Set mock
+
+        let mut credential_manager = CredentialManager {
+            connection: Connection::open_in_memory().unwrap(),
+            entry_cache: HashMap::new()
+        };
+
+        credential_manager.set_credential("http://example.com/", &&new_credential("test_user", "test_password", None)).unwrap();
 
         let credential: Credential = credential_manager.get_credential("http://example.com").unwrap().context("Credential expected").unwrap();
 
