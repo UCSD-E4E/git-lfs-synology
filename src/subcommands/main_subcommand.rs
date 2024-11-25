@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::ArgMatches;
 
-use crate::{credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, GitLfsParser}};
+use crate::{credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, Event, GitLfsParser}};
 
 use super::Subcommand;
 
@@ -11,7 +11,7 @@ pub struct MainSubcommand {
 }
 
 impl CustomTransferAgent for MainSubcommand {
-    async fn init(&mut self) -> Result<()> {
+    async fn init(&mut self, _: &Event) -> Result<()> {
         self.credential_manager = Some(CredentialManager::new()?);
         // Init synology api
 

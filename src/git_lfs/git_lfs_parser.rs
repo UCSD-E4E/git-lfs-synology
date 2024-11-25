@@ -1,15 +1,33 @@
-use anyhow::Result;
+use std::io;
+
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use super::CustomTransferAgent;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-struct Event {
+struct EventJson {
     event: String,
     operation: String,
     remote: String,
     concurrent: bool
+}
+
+pub struct Event {
+    event: EventType,
+    operation: EventOperation,
+    remote: String,
+    concurrent: bool
+}
+
+pub enum EventType {
+    Init
+}
+
+pub enum EventOperation {
+    Download,
+    Upload
 }
 
 #[derive(Debug)]
@@ -24,10 +42,36 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         }
     }
 
-    pub async fn listen(&mut self) -> Result<()> {
-        // todo parse from stdin in a loop.
+    fn parse(&self, event: &EventJson) -> Result<Event> {
+        let event_type = match event.event.as_str() {
+            "init" => EventType::Init,
+            _ => bail!("Event type was \"{}\". Expected \"init\".", event.event)
+        };
 
-        self.custom_transfer_agent.init().await?;
+        let event_operation = match event.operation.as_str() {
+            "download" => EventOperation::Download,
+            "upload" => EventOperation::Upload,
+            _ => bail!("Event operation was \"{}\". Expected either \"download\" or \"upload\".", event.operation)
+        };
+
+        Ok(Event {
+            event: event_type,
+            operation: event_operation,
+            remote: event.remote.clone(),
+            concurrent: event.concurrent
+        })
+    }
+
+    pub async fn listen(&mut self) -> Result<()> {
+        let mut buffer = String::new();
+        let stdin = io::stdin();
+
+        stdin.read_line(&mut buffer)?;
+        let event = self.parse(&serde_json::from_str::<EventJson>(buffer.as_str())?)?;
+
+        self.custom_transfer_agent.init(&event).await?;
+
+        // todo parse from stdin in a loop.
 
         Ok(())
     }
