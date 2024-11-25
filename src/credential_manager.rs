@@ -23,6 +23,7 @@ pub struct Credential {
 }
 
 impl Credential {
+    #[tracing::instrument]
     pub fn new(user: String, password: String, totp_command: Option<String>) -> Credential {
         Credential {
             user,
@@ -67,6 +68,7 @@ pub struct CredentialManager {
 }
 
 impl CredentialManager {
+    #[tracing::instrument]
     pub fn new() -> Result<CredentialManager> {
         Ok(CredentialManager {
             connection: CredentialManager::get_connection()?,

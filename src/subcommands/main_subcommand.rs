@@ -11,10 +11,12 @@ pub struct MainSubcommand {
 }
 
 impl CustomTransferAgent for MainSubcommand {
+    #[tracing::instrument]
     async  fn download(&mut self, _: &Event) -> Result<()> {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn init(&mut self, _: &Event) -> Result<()> {
         let configuration = Configuration::load()?;
         let mut credential_manager = CredentialManager::new()?;
@@ -30,12 +32,14 @@ impl CustomTransferAgent for MainSubcommand {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn terminate(&mut self) -> Result<()> {
         // No cleanup to do.
 
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn upload(&mut self, _: &Event) -> Result<()> {
         Ok(())
     }
@@ -52,6 +56,7 @@ impl Subcommand for MainSubcommand {
 }
 
 impl MainSubcommand {
+    #[tracing::instrument]
     pub fn new() -> MainSubcommand {
         MainSubcommand {
             file_station: None

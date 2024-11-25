@@ -10,6 +10,7 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    #[tracing::instrument]
     pub fn load() -> Result<Configuration> {
         let mut path = PathBuf::new();
         path.push("./");

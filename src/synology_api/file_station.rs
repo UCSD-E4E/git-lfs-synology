@@ -15,10 +15,12 @@ pub struct SynologyFileStation {
 }
 
 impl SynologyFileStation {
+    #[tracing::instrument]
     pub fn new(url: &str) -> SynologyFileStation {
         SynologyFileStation::new_with_version(url, 7)
     }
 
+    #[tracing::instrument]
     pub fn new_with_version(url: &str, version: u8) -> SynologyFileStation {
         SynologyFileStation {
             sid: None,

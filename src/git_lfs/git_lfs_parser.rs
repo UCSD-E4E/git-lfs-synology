@@ -35,10 +35,7 @@ struct ErrorJsonInner {
 }
 
 pub struct Event {
-    event: EventType,
-    // operation: EventOperation,
-    // remote: String,
-    // concurrent: bool
+    event: EventType
 }
 
 pub enum EventType {
@@ -50,23 +47,20 @@ pub enum EventType {
     Upload
 }
 
-// pub enum EventOperation {
-//     Download,
-//     Upload
-// }
-
 #[derive(Debug)]
 pub struct GitLfsParser<'custom_transfer_agent, T: CustomTransferAgent> {
     custom_transfer_agent: &'custom_transfer_agent mut T
 }
 
 impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transfer_agent, T> {
+    #[tracing::instrument]
     pub fn new(custom_transfer_agent: &mut T) -> GitLfsParser::<T> {
         GitLfsParser::<T> {
             custom_transfer_agent
         }
     }
 
+    #[tracing::instrument]
     fn parse(&self, event: &EventJsonPartial) -> Result<Event> {
         let event_type = match event.event.as_str() {
             "download" => EventType::Download,
@@ -76,20 +70,12 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             _ => bail!("Event type was \"{}\". Value unexpected.", event.event)
         };
 
-        // let event_operation = match event.operation.as_str() {
-        //     "download" => EventOperation::Download,
-        //     "upload" => EventOperation::Upload,
-        //     _ => bail!("Event operation was \"{}\". Expected either \"download\" or \"upload\".", event.operation)
-        // };
-
         Ok(Event {
-            event: event_type,
-            // operation: event_operation,
-            // remote: event.remote.clone(),
-            // concurrent: event.concurrent
+            event: event_type
         })
     }
 
+    #[tracing::instrument]
     pub async fn listen(&mut self) -> Result<()> {
         let mut buffer = String::new();
         let stdin = io::stdin();
