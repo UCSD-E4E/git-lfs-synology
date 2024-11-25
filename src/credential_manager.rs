@@ -36,16 +36,19 @@ impl Credential {
         match self.totp_command.clone() {
             Some(totp_command) => {
                 info!("TOTP command found.");
-
-                let parts = totp_command.split(" ").collect::<Vec<&str>>();
-                let command = parts.first()?.to_string();
-                let args = totp_command[command.len()..].to_string();
-
-                debug!("Executing TOTP command.");
-                let output = Command::new(command.as_str())
-                     .arg(args.as_str())
-                     .output()
-                     .expect("failed to execute process");
+                
+                let output = if cfg!(target_os = "windows") {
+                    Command::new("cmd")
+                        .args(["/C", totp_command.as_str()])
+                        .output()
+                        .expect("failed to execute process")
+                } else {
+                    Command::new("sh")
+                        .arg("-c")
+                        .arg(totp_command.as_str())
+                        .output()
+                        .expect("failed to execute process")
+                };
 
                 Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
             },

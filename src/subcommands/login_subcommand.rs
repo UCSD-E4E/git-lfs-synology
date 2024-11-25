@@ -49,8 +49,7 @@ impl Subcommand for LoginSubcommand {
 
         let mut file_station = SynologyFileStation::new(url);
         file_station.login(&credential).await?;
-
-        // TODO; Handle InvalidUserDoesThisFileOperation
+        
         credential_manager.set_credential(url, &credential)?;
 
         Ok(())
