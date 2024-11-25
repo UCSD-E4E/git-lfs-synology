@@ -42,8 +42,12 @@ pub struct Event {
 }
 
 pub enum EventType {
+    // Complete,
+    Download,
     Init,
-    Terminate
+    // Progress,
+    Terminate,
+    Upload
 }
 
 // pub enum EventOperation {
@@ -65,8 +69,10 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
 
     fn parse(&self, event: &EventJsonPartial) -> Result<Event> {
         let event_type = match event.event.as_str() {
+            "download" => EventType::Download,
             "init" => EventType::Init,
             "terminate" => EventType::Terminate,
+            "upload" => EventType::Upload,
             _ => bail!("Event type was \"{}\". Value unexpected.", event.event)
         };
 
@@ -106,8 +112,8 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
 
             match event.event {
-                // TODO handle other event types
-
+                EventType::Download => self.custom_transfer_agent.download(&event).await?,
+                EventType::Upload => self.custom_transfer_agent.upload(&event).await?,
                 EventType::Terminate => {
                     self.custom_transfer_agent.terminate().await?;
 

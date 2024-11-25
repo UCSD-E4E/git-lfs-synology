@@ -11,6 +11,10 @@ pub struct MainSubcommand {
 }
 
 impl CustomTransferAgent for MainSubcommand {
+    async  fn download(&mut self, _: &Event) -> Result<()> {
+        Ok(())
+    }
+
     async fn init(&mut self, _: &Event) -> Result<()> {
         let configuration = Configuration::load()?;
         let mut credential_manager = CredentialManager::new()?;
@@ -29,6 +33,10 @@ impl CustomTransferAgent for MainSubcommand {
     async fn terminate(&mut self) -> Result<()> {
         // No cleanup to do.
 
+        Ok(())
+    }
+
+    async fn upload(&mut self, _: &Event) -> Result<()> {
         Ok(())
     }
 }
