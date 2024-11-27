@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Command, Arg};
+use tracing::error;
 use users_dirs::get_config_dir;
 use tracing_appender::rolling;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
@@ -18,7 +19,7 @@ fn setup_logging() -> Result<()> {
     let log_file = rolling::daily(config_path, "log").with_max_level(tracing::Level::INFO);
 
     tracing_subscriber::fmt()
-        .compact()
+        .pretty()
         .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)
@@ -81,7 +82,7 @@ async fn main() -> Result<()> {
 
     let matches = cli().get_matches();
 
-    match matches.subcommand() {
+    let result: Result<()> = match matches.subcommand() {
         Some(("login", sub_matches)) => {
             let mut login_command = LoginSubcommand { };
             login_command.execute(sub_matches).await?;
@@ -100,6 +101,15 @@ async fn main() -> Result<()> {
             main_command.execute(&matches).await?;
 
             Ok(())
+        }
+    };
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            error!("An error bubbled to the main method: \"{}\".", error);
+
+            Err(error)
         }
     }
 }

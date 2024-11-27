@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use num_derive::FromPrimitive;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -73,7 +75,7 @@ pub enum SynologyStatusCode {
 }
 
 #[derive(Error, Debug)]
-pub enum SynologyError {
+pub enum SynologyErrorStatus {
     #[error("Error occurred on Synology.")]
     ServerError(#[from] SynologyStatusCode),
     #[error("HTTP error occurred.")]
@@ -82,38 +84,41 @@ pub enum SynologyError {
     ReqwestError(#[from] reqwest::Error),
     #[error("Serde threw an error.")]
     SerdeError(#[from] serde_json::Error),
+    #[error("TOTP required but not provided")]
+    NoTotp,
     #[error("An unknown error occurred.")]
     UnknownError
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct SynologyPartial {
-    pub success: bool
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde[rename_all = "snake_case"]]
-pub struct SynologyResult<T> {
+pub struct SynologyResult<TData, TErrors> {
     pub success: bool,
-    pub data: T
+    pub data: Option<TData>,
+    pub error: Option<SynologyError<TErrors>>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct SynologyResponseError<T> {
-    pub success: bool,
-    pub error: T
+pub struct SynologyError<TErrors> {
+    pub code: u32,
+    pub errors: Option<TErrors>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct SynologyResponseErrorInner {
-    pub code: u32
+pub struct SynologyEmptyError {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
 pub struct LoginResult {
     pub sid: String
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct LoginError {
+    pub token: String,
+    pub types: Vec<HashMap<String, String>>
 }
