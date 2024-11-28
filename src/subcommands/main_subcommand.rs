@@ -1,8 +1,12 @@
+use std::{fs::File, io::{Read, Write}};
+
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 use named_lock::NamedLock;
+use tracing::info;
+use zstd::Encoder;
 
-use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser}, synology_api::SynologyFileStation};
+use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, ProgressReporter}, synology_api::SynologyFileStation};
 
 use super::Subcommand;
 
@@ -54,7 +58,14 @@ impl CustomTransferAgent for MainSubcommand {
     }
 
     #[tracing::instrument]
-    async fn upload(&mut self, _: &Event) -> Result<()> {
+    async fn upload(&mut self, event: &Event) -> Result<()> {
+        let mut progress_reporter = ProgressReporter::new(
+            event.size.clone().context("Size should not be null")?,
+            event.oid.clone().context("oid should not be null")?);
+
+        let path = event.path.clone().context("Path should not be null.")?;
+        let file = self.compress_file(path.as_str(), event.size.context("Size should not be null")?, &mut progress_reporter)?;
+
         // Check to see if the blob is compressible - 10%
         // Fully compress the blob if compressible - 40%
         // Upload either the uncompressed blob or the original to the nas - 50% to 90% depending on compressed or not
@@ -78,6 +89,52 @@ impl MainSubcommand {
     pub fn new() -> MainSubcommand {
         MainSubcommand {
             file_station: None
+        }
+    }
+
+    #[tracing::instrument]
+    fn compress_file(&self, path: &str, size: usize, progress_reporter: &mut ProgressReporter) -> Result<File> {
+        const BYTES_TO_KB: usize = 1024;
+        const KB_TO_MB: usize = 1024;
+        const BYTES_TO_MB: usize = BYTES_TO_KB * KB_TO_MB;
+        const CHUNK_SIZE: usize = 4 * BYTES_TO_MB;
+
+        let chunk_count = (size as f64 / CHUNK_SIZE as f64).ceil() as u64;
+
+        info!("Compressing file.  We have {} chunks.", chunk_count);
+
+        let mut source = File::open(path)?;
+
+        let target = tempfile::tempfile()?;
+        let mut encoder = Encoder::new(&target, 0)?;
+
+        let mut compressible = true;
+        let mut buffer = [0; CHUNK_SIZE];
+        for i in 0..chunk_count {
+            let count = source.read(&mut buffer)?;
+            let compressed_size = encoder.write(&buffer[..count])?;
+
+            if i == 0 && compressed_size < count {
+                info!("File is not compressible, aborting compression.");
+
+                compressible = false;
+                break // We are not compressible
+            }
+
+            let progress = (i + 1) as f64 / chunk_count as f64 / 10.0;
+            progress_reporter.update(progress)?;
+        }
+
+        if compressible {
+            info!("Finished compressing.");
+
+            encoder.finish()?;
+            Ok(target)
+        }
+        else {
+            info!("Compression is not possible");
+
+            Ok(source)
         }
     }
 

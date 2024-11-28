@@ -6,6 +6,42 @@ use tracing::{info, warn};
 
 use super::CustomTransferAgent;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProgressReporter {
+    total_bytes: usize,
+    bytes_so_far: usize,
+    bytes_since_last: usize,
+    oid: String,
+    event: String
+}
+
+impl ProgressReporter {
+    pub fn new(total_bytes: usize, oid: String) -> ProgressReporter {
+        ProgressReporter {
+            total_bytes,
+            oid,
+            bytes_so_far: 0,
+            bytes_since_last: 0,
+            event: "progress".to_string()
+        }
+    }
+
+    pub fn update(&mut self, progress: f64) -> Result<()> {
+        let progress_bytes = if progress < 1.0 {
+                (self.total_bytes as f64 * progress).floor() as usize
+            }
+            else {
+                self.total_bytes
+            };
+
+        self.bytes_since_last = progress_bytes - self.bytes_so_far;
+        self.bytes_so_far = progress_bytes;
+
+        println!("{}", serde_json::to_string(self)?);
+        Ok(())
+    }
+}
+
 pub fn error_init(code: u32, message: &str) -> Result<()> {
     let error_json = ErrorJson {
         error: ErrorJsonInner {
@@ -20,11 +56,18 @@ pub fn error_init(code: u32, message: &str) -> Result<()> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct EventJson {
-    event: String
+    event: String,
+    oid: Option<String>,
+    path: Option<String>,
+    size: Option<usize>
 }
 
+#[derive(Debug)]
 pub struct Event {
-    event: EventType
+    pub event: EventType,
+    pub oid: Option<String>,
+    pub path: Option<String>,
+    pub size: Option<usize>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -38,6 +81,7 @@ struct ErrorJsonInner {
     message: String
 }
 
+#[derive(Debug)]
 pub enum EventType {
     // Complete,
     Download,
@@ -72,7 +116,10 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         };
 
         Ok(Event {
-            event: event_type
+            event: event_type,
+            oid: event.oid.clone(),
+            path: event.path.clone(),
+            size: event.size.clone()
         })
     }
 
