@@ -76,13 +76,13 @@ pub enum SynologyStatusCode {
 
 #[derive(Error, Debug)]
 pub enum SynologyErrorStatus {
-    #[error("Error occurred on Synology.")]
+    #[error(transparent)]
     ServerError(#[from] SynologyStatusCode),
     #[error("HTTP error occurred.")]
     HttpError(StatusCode),
-    #[error("Reqwest threw an error.")]
+    #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
-    #[error("Serde threw an error.")]
+    #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
     #[error("TOTP required but not provided")]
     NoTotp,

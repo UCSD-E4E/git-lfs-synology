@@ -77,14 +77,12 @@ impl MainSubcommand {
 
         let file_station = self.file_station.clone().context("File Station should not be null.")?;
 
-        // Check if folder exists
-
         let path_parts = configuration.path.split('/');
         let name = path_parts.last().context("Our path should have a name")?;
         // We remove one extra character so that we don't have a trailing '/'.
         let folder_path_string = configuration.path[..(configuration.path.len() - name.len() - 1)].to_string();
         let folder_path = folder_path_string.as_str();
-        let _folders = file_station.create_folder(folder_path, name, false).await?;
+        let _folders = file_station.create_folder(folder_path, name, true).await?;
 
         Ok(())
     }
