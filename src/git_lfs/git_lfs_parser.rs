@@ -6,7 +6,7 @@ use tracing::{info, warn};
 
 use super::CustomTransferAgent;
 
-pub fn error(code: u32, message: &str) -> Result<()> {
+pub fn error_init(code: u32, message: &str) -> Result<()> {
     let error_json = ErrorJson {
         error: ErrorJsonInner {
             code,
@@ -103,7 +103,7 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             Err(err) => {
                 warn!("An error occurred \"{}\".", err);
 
-                error(1, err.to_string().as_str())? // an error occurred
+                error_init(1, err.to_string().as_str())? // an error occurred
             }
         }
 

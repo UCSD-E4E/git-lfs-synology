@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::ArgMatches;
 use named_lock::NamedLock;
 
-use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, Event, GitLfsParser}, synology_api::SynologyFileStation};
+use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser}, synology_api::SynologyFileStation};
 
 use super::Subcommand;
 
@@ -26,14 +26,24 @@ impl CustomTransferAgent for MainSubcommand {
         let mut file_station = SynologyFileStation::new(nas_url);
 
         let credential = credential_manager.get_credential(nas_url)?.context("Credential should not be null")?;
-        file_station.login(&credential).await?;
+        match file_station.login(&credential).await {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                error_init(1, error.to_string().as_str())?;
+                Err(error)
+            }
+        }?;
 
         self.file_station = Some(file_station);
 
         let path = configuration.path.as_str();
-        self.create_folder(path).await?;
-
-        Ok(())
+        match self.create_folder(path).await {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                error_init(1, error.to_string().as_str())?;
+                Err(error)
+            }
+        }
     }
 
     #[tracing::instrument]
@@ -45,6 +55,10 @@ impl CustomTransferAgent for MainSubcommand {
 
     #[tracing::instrument]
     async fn upload(&mut self, _: &Event) -> Result<()> {
+        // Check to see if the blob is compressible - 10%
+        // Fully compress the blob if compressible - 40%
+        // Upload either the uncompressed blob or the original to the nas - 50% to 90% depending on compressed or not
+
         Ok(())
     }
 }
