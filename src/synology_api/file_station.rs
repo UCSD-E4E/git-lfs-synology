@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io};
 
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
@@ -8,7 +8,7 @@ use urlencoding::encode;
 
 use crate::credential_manager::Credential;
 
-use super::responses::{CreateFolderResult, LoginError, LoginResult, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode};
+use super::{responses::{CreateFolderResult, LoginError, LoginResult, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode}, ProgressReporter};
 
 #[derive(Clone, Debug)]
 pub struct SynologyFileStation {
@@ -198,5 +198,18 @@ impl SynologyFileStation {
             },
             None => Err(SynologyErrorStatus::UnknownError)
         }
+    }
+
+    pub async fn upload<TStream: io::Read, TProgressReporter: ProgressReporter>(&self,
+        stream: TStream,
+        path: &str,
+        create_parents: bool,
+        overwrite: bool,
+        mtime: Option<u64>,
+        crtime: Option<u64>,
+        atime: Option<u64>,
+        progress_reporter: Option<&mut TProgressReporter>
+    ) -> Result<(), SynologyErrorStatus> {
+            todo!()
     }
 }

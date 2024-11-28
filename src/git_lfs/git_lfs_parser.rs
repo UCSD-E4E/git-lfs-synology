@@ -7,7 +7,7 @@ use tracing::{info, warn};
 use super::CustomTransferAgent;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ProgressReporter {
+pub struct GitLfsProgressReporter {
     total_bytes: usize,
     bytes_so_far: usize,
     bytes_since_last: usize,
@@ -15,9 +15,9 @@ pub struct ProgressReporter {
     event: String
 }
 
-impl ProgressReporter {
-    pub fn new(total_bytes: usize, oid: String) -> ProgressReporter {
-        ProgressReporter {
+impl GitLfsProgressReporter {
+    pub fn new(total_bytes: usize, oid: String) -> GitLfsProgressReporter {
+        GitLfsProgressReporter {
             total_bytes,
             oid,
             bytes_so_far: 0,

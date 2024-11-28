@@ -6,9 +6,20 @@ use named_lock::NamedLock;
 use tracing::info;
 use zstd::Encoder;
 
-use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, ProgressReporter}, synology_api::SynologyFileStation};
+use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, GitLfsProgressReporter}, synology_api::{ProgressReporter, SynologyFileStation}};
 
 use super::Subcommand;
+
+struct StdOutProgressReporter {
+    git_lfs_progress_reporter: GitLfsProgressReporter
+}
+
+impl ProgressReporter for StdOutProgressReporter {
+    fn update(&mut self, bytes_so_far: usize, total_bytes: usize) -> Result<()> {
+        let progress = 0.9 * bytes_so_far as f64 / total_bytes as f64;
+        self.git_lfs_progress_reporter.update(progress)
+    }
+}
 
 #[derive(Debug)]
 pub struct MainSubcommand {
@@ -59,16 +70,35 @@ impl CustomTransferAgent for MainSubcommand {
 
     #[tracing::instrument]
     async fn upload(&mut self, event: &Event) -> Result<()> {
-        let mut progress_reporter = ProgressReporter::new(
+        let configuration = Configuration::load()?;
+
+        let mut git_lfs_progress_reporter = GitLfsProgressReporter::new(
             event.size.clone().context("Size should not be null")?,
             event.oid.clone().context("oid should not be null")?);
 
         let path = event.path.clone().context("Path should not be null.")?;
-        let file = self.compress_file(path.as_str(), event.size.context("Size should not be null")?, &mut progress_reporter)?;
+        let (compressed, file) = self.compress_file(path.as_str(), event.size.context("Size should not be null")?, &mut git_lfs_progress_reporter)?;
 
-        // Check to see if the blob is compressible - 10%
-        // Fully compress the blob if compressible - 40%
-        // Upload either the uncompressed blob or the original to the nas - 50% to 90% depending on compressed or not
+        let target_file_name = if compressed {
+            format!("{}.zst", event.oid.clone().context("oid should not be null")?)
+        }
+        else {
+            event.oid.clone().context("oid should not be null")?
+        };
+
+        let path = format!(
+            "{}/{}",
+            configuration.path,
+            target_file_name
+        );
+
+        let mut progress_reporter = StdOutProgressReporter {
+            git_lfs_progress_reporter
+        };
+
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+        file_station.upload(file, path.as_str(), false, false, None, None, None, Some(&mut progress_reporter)).await?;
+        // Upload either the uncompressed blob or the original to the nas - 90%
 
         Ok(())
     }
@@ -93,7 +123,7 @@ impl MainSubcommand {
     }
 
     #[tracing::instrument]
-    fn compress_file(&self, path: &str, size: usize, progress_reporter: &mut ProgressReporter) -> Result<File> {
+    fn compress_file(&self, path: &str, size: usize, progress_reporter: &mut GitLfsProgressReporter) -> Result<(bool, File)> {
         const BYTES_TO_KB: usize = 1024;
         const KB_TO_MB: usize = 1024;
         const BYTES_TO_MB: usize = BYTES_TO_KB * KB_TO_MB;
@@ -121,20 +151,23 @@ impl MainSubcommand {
                 break // We are not compressible
             }
 
-            let progress = (i + 1) as f64 / chunk_count as f64 / 10.0;
+            let progress = 0.1 * (i + 1) as f64 / chunk_count as f64;
             progress_reporter.update(progress)?;
         }
+
+        let progress = 1.0 / 10.0;
+        progress_reporter.update(progress)?;
 
         if compressible {
             info!("Finished compressing.");
 
             encoder.finish()?;
-            Ok(target)
+            Ok((compressible, target))
         }
         else {
             info!("Compression is not possible");
 
-            Ok(source)
+            Ok((compressible, source))
         }
     }
 
