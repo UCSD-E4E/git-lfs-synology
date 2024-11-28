@@ -2,6 +2,7 @@ use std::io;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
 
 use super::CustomTransferAgent;
 
@@ -81,10 +82,14 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         let stdin = io::stdin();
 
         stdin.read_line(&mut buffer)?;
+        debug!("Received JSON: \"{}\".", buffer);
         let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
 
         let init_result = match event.event {
-            EventType::Init => self.custom_transfer_agent.init(&event).await,
+            EventType::Init => {
+                info!("Calling init on custom transfer agent.");
+                self.custom_transfer_agent.init(&event).await
+            },
             _ => bail!("Event type was not init.")
         };
 
@@ -95,12 +100,20 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
 
         loop {
             stdin.read_line(&mut buffer)?;
+            debug!("Received JSON: \"{}\".", buffer);
             let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
 
             match event.event {
-                EventType::Download => self.custom_transfer_agent.download(&event).await?,
-                EventType::Upload => self.custom_transfer_agent.upload(&event).await?,
+                EventType::Download => {
+                    info!("Calling download on custom transfer agent.");
+                    self.custom_transfer_agent.download(&event).await?
+                },
+                EventType::Upload => {
+                    info!("Calling upload on custom transfer agent.");
+                    self.custom_transfer_agent.upload(&event).await?
+                },
                 EventType::Terminate => {
+                    info!("Calling terminate on custom transfer agent.");
                     self.custom_transfer_agent.terminate().await?;
 
                     break;
