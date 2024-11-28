@@ -2,6 +2,7 @@ use std::{collections::HashMap, fs::create_dir_all, process::Command};
 
 use aes_gcm::{aead::{Aead, OsRng}, AeadCore, Aes256Gcm, Key, KeyInit, Nonce};
 use anyhow::{Result, Context};
+use educe::Educe;
 use keyring::Entry;
 use rusqlite::Connection;
 use tracing::{debug, info};
@@ -15,9 +16,11 @@ struct DatabaseCredential {
     totp_nonce: Option<Vec<u8>>
 }
 
-#[derive(Debug)]
+#[derive(Educe)]
+#[educe(Debug)]
 pub struct Credential {
     pub user: String,
+    #[educe(Debug(ignore))] // Do not include password in logs.
     pub password: String,
     pub totp_command: Option<String>
 }

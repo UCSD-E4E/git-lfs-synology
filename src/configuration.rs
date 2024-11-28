@@ -1,8 +1,9 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{anyhow, Context, Ok, Result};
 use gix_config::File;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use url::Url;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -22,6 +23,8 @@ impl Configuration {
         let section = config.section("lfs", None)?;
 
         let url = section.value("url").context("Url should be set.")?.to_string();
+        debug!("Url found: {}", url);
+
         let url = if url.starts_with("filestation-secure://") {
             Ok(url.replace("filestation-secure", "https"))
         }
@@ -31,6 +34,7 @@ impl Configuration {
         else {
             Err(anyhow!("Url is not set incorrectly."))
         }?;
+        debug!("Url updated: {}", url);
 
         let url_parsed = Url::parse(url.as_str())?;
 
