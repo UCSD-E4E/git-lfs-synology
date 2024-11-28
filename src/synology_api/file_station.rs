@@ -1,31 +1,63 @@
+use std::collections::HashMap;
+
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use tracing::{info, warn};
+use urlencoding::encode;
 
 use crate::credential_manager::Credential;
 
-use super::responses::{LoginError, LoginResult, SynologyEmptyError, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode};
+use super::responses::{CreateFolderResult, LoginError, LoginResult, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SynologyFileStation {
     sid: Option<String>,
-    url: String,
-    version: u8
+    url: String
 }
 
 impl SynologyFileStation {
     #[tracing::instrument]
     pub fn new(url: &str) -> SynologyFileStation {
-        SynologyFileStation::new_with_version(url, 7)
+        SynologyFileStation {
+            sid: None,
+            url: url.to_string()
+        }
     }
 
     #[tracing::instrument]
-    pub fn new_with_version(url: &str, version: u8) -> SynologyFileStation {
-        SynologyFileStation {
-            sid: None,
-            url: url.to_string(),
-            version
+    async fn get<T: DeserializeOwned>(&self, api: &str, method: &str, version: u32, parameters: &HashMap<&str, &str>) -> Result<T, SynologyErrorStatus> {
+        match &self.sid {
+            Some(sid) => {
+                info!("Found sid, continuing.");
+                let mut url = format!(
+                    "{}/webapi/entry.cgi?api={}&version={}&method={}&_sid={}",
+                    self.url,
+                    api,
+                    version,
+                    method,
+                    sid.as_str()
+                );
+
+                for (key, value) in parameters {
+                    url = format!(
+                        "{}&{}={}",
+                        url,
+                        key,
+                        encode(value)
+                    );
+                }
+
+                info!("Get: \"{}\".", url);
+
+                let response = reqwest::get(url).await;
+                Ok(self.parse(response).await?)
+            },
+            None => {
+                info!("No sid found. Not logged in");
+
+                Err(SynologyErrorStatus::NotLoggedIn)
+            }
         }
     }
 
@@ -37,7 +69,7 @@ impl SynologyFileStation {
                     StatusCode::OK => {
                         match response.text().await {
                             Ok(text) => {
-                                info!("Parsing response from server.");
+                                info!("Parsing response from server. Response was \"{}\".", text);
                                 let result = serde_json::from_str::<SynologyResult<TData, TError>>(text.as_str());
 
                                 match result {
@@ -61,7 +93,7 @@ impl SynologyFileStation {
 
     #[tracing::instrument]
     async fn parse<T: DeserializeOwned>(&self, response: Result<Response, Error>) -> Result<T, SynologyErrorStatus> {
-        let (data, error) = self.parse_data_and_error::<T, SynologyEmptyError>(response).await?;
+        let (data, error) = self.parse_data_and_error::<T, Vec<HashMap<String, String>>>(response).await?;
 
         match error {
             Some(error) => {
@@ -85,14 +117,25 @@ impl SynologyFileStation {
         }
     }
 
+    pub async fn create_folder(&self, folder_path: &str, name: &str, force_parent: bool) -> Result<CreateFolderResult, SynologyErrorStatus> {
+        let force_parent_string = force_parent.to_string();
+
+        let mut parameters = HashMap::<&str, &str>::new();
+        parameters.insert("folder_path", folder_path);
+        parameters.insert("name", name);
+        parameters.insert("force_parent", force_parent_string.as_str());
+
+        Ok(self.get("SYNO.FileStation.CreateFolder", "create", 2, &parameters).await?)
+    }
+
     #[tracing::instrument]
     pub async fn login(&mut self, credential: &Credential) -> Result<(), SynologyErrorStatus> {
         let login_url = format!(
             "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&session=FileStation&fromat=sid",
             self.url,
-            self.version,
+            6,
             credential.user,
-            credential.password
+            encode(credential.password.as_str()) // Encode the password in case it has characters not allowed in URLs in it.
         );
 
         // Make initial request to the server.  This will fail if the user needs a TOTP.
@@ -120,7 +163,7 @@ impl SynologyFileStation {
                                                     let login_url = format!(
                                                         "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&session=FileStation&fromat=sid&otp_code={}",
                                                         self.url,
-                                                        self.version,
+                                                        6,
                                                         credential.user,
                                                         errors.token,
                                                         totp

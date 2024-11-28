@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::ArgMatches;
+use named_lock::NamedLock;
 
 use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{CustomTransferAgent, Event, GitLfsParser}, synology_api::SynologyFileStation};
 
@@ -12,7 +13,7 @@ pub struct MainSubcommand {
 
 impl CustomTransferAgent for MainSubcommand {
     #[tracing::instrument]
-    async  fn download(&mut self, _: &Event) -> Result<()> {
+    async fn download(&mut self, _: &Event) -> Result<()> {
         Ok(())
     }
 
@@ -28,6 +29,9 @@ impl CustomTransferAgent for MainSubcommand {
         file_station.login(&credential).await?;
 
         self.file_station = Some(file_station);
+
+        let path = configuration.path.as_str();
+        self.create_folder(path).await?;
 
         Ok(())
     }
@@ -61,5 +65,27 @@ impl MainSubcommand {
         MainSubcommand {
             file_station: None
         }
+    }
+
+    #[tracing::instrument]
+    async fn create_folder(&self, path: &str) -> Result<()> {
+        let configuration = Configuration::load()?;
+
+        // This is a System wide, cross-process lock.
+        let lock = NamedLock::create("git-lfs-synology::MianSubcommand::create_folder")?;
+        let _guard = lock.lock()?;
+
+        let file_station = self.file_station.clone().context("File Station should not be null.")?;
+
+        // Check if folder exists
+
+        let path_parts = configuration.path.split('/');
+        let name = path_parts.last().context("Our path should have a name")?;
+        // We remove one extra character so that we don't have a trailing '/'.
+        let folder_path_string = configuration.path[..(configuration.path.len() - name.len() - 1)].to_string();
+        let folder_path = folder_path_string.as_str();
+        let _folders = file_station.create_folder(folder_path, name, false).await?;
+
+        Ok(())
     }
 }

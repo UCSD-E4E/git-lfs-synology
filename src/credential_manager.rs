@@ -37,7 +37,7 @@ impl Credential {
 
     #[tracing::instrument]
     pub fn totp(&self) -> Option<String> {
-        match self.totp_command.clone() {
+        match &self.totp_command {
             Some(totp_command) => {
                 info!("TOTP command found.");
                 

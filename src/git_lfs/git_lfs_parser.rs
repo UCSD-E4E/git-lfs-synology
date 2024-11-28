@@ -2,7 +2,7 @@ use std::io;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{info, warn};
 
 use super::CustomTransferAgent;
 
@@ -15,13 +15,16 @@ pub fn error(code: u32, message: &str) -> Result<()> {
     };
 
     println!("{}", serde_json::to_string(&error_json)?);
-
     Ok(())
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct EventJsonPartial {
+struct EventJson {
     event: String
+}
+
+pub struct Event {
+    event: EventType
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -33,10 +36,6 @@ struct ErrorJson {
 struct ErrorJsonInner {
     code: u32,
     message: String
-}
-
-pub struct Event {
-    event: EventType
 }
 
 pub enum EventType {
@@ -62,7 +61,8 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
     }
 
     #[tracing::instrument]
-    fn parse(&self, event: &EventJsonPartial) -> Result<Event> {
+    fn parse(&self, event: &EventJson) -> Result<Event> {
+        info!("Event received: \"{}\".", event.event);
         let event_type = match event.event.as_str() {
             "download" => EventType::Download,
             "init" => EventType::Init,
@@ -82,8 +82,9 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         let stdin = io::stdin();
 
         stdin.read_line(&mut buffer)?;
-        debug!("Received JSON: \"{}\".", buffer);
-        let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
+        info!("Received JSON: \"{}\".", buffer);
+        let event = self.parse(&serde_json::from_str::<EventJson>(buffer.as_str())?)?;
+        buffer.clear();
 
         let init_result = match event.event {
             EventType::Init => {
@@ -94,14 +95,23 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
         };
 
         match init_result {
-            Ok(_) => println!("{{ }}"), // success
-            Err(err) => error(1, err.to_string().as_str())? // an error occurred
+            Ok(_) => {
+                info!("Init event parsed correctly.");
+
+                println!("{{ }}")
+            }, // success
+            Err(err) => {
+                warn!("An error occurred \"{}\".", err);
+
+                error(1, err.to_string().as_str())? // an error occurred
+            }
         }
 
         loop {
             stdin.read_line(&mut buffer)?;
-            debug!("Received JSON: \"{}\".", buffer);
-            let event = self.parse(&serde_json::from_str::<EventJsonPartial>(buffer.as_str())?)?;
+            info!("Received JSON: \"{}\".", buffer);
+            let event = self.parse(&serde_json::from_str::<EventJson>(buffer.as_str())?)?;
+            buffer.clear();
 
             match event.event {
                 EventType::Download => {
@@ -118,7 +128,11 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
 
                     break;
                 },
-                _ => bail!("Event type not supported in context.")
+                _ => {
+                    warn!("Event type not supported in context.");
+
+                    bail!("Event type not supported in context.")
+                }
             }
         }
 

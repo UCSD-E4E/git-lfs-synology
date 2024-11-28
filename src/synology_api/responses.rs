@@ -86,6 +86,8 @@ pub enum SynologyErrorStatus {
     SerdeError(#[from] serde_json::Error),
     #[error("TOTP required but not provided")]
     NoTotp,
+    #[error("No user logged in")]
+    NotLoggedIn,
     #[error("An unknown error occurred.")]
     UnknownError
 }
@@ -107,11 +109,6 @@ pub struct SynologyError<TErrors> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct SynologyEmptyError {
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde[rename_all = "snake_case"]]
 pub struct LoginResult {
     pub sid: String
 }
@@ -121,4 +118,18 @@ pub struct LoginResult {
 pub struct LoginError {
     pub token: String,
     pub types: Vec<HashMap<String, String>>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct CreateFolderResult {
+    folders: Vec<FolderModel>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FolderModel {
+    pub isdir: bool,
+    pub name: String,
+    pub path: String
 }

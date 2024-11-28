@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Command, Arg};
+use clap::{Arg, Command};
 use tracing::error;
 use users_dirs::get_config_dir;
 use tracing_appender::rolling;
@@ -79,7 +79,6 @@ fn cli() -> Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging()?;
-
     let matches = cli().get_matches();
 
     let result: Result<()> = match matches.subcommand() {
