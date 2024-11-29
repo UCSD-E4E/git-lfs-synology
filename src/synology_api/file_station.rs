@@ -1,8 +1,11 @@
 use std::{collections::HashMap, io};
 
+use futures_util::{StreamExt, TryFutureExt};
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
 use serde::de::DeserializeOwned;
+use tokio::fs::File;
+use tokio_util::io::ReaderStream;
 use tracing::{info, warn};
 use urlencoding::encode;
 
@@ -200,16 +203,88 @@ impl SynologyFileStation {
         }
     }
 
-    pub async fn upload<TStream: io::Read, TProgressReporter: ProgressReporter>(&self,
-        stream: TStream,
+    pub async fn upload<TProgressReporter: ProgressReporter>(&self,
+        file: File,
         path: &str,
         create_parents: bool,
         overwrite: bool,
         mtime: Option<u64>,
         crtime: Option<u64>,
         atime: Option<u64>,
-        progress_reporter: Option<&mut TProgressReporter>
+        mut progress_reporter: Option<&'static mut TProgressReporter>
     ) -> Result<(), SynologyErrorStatus> {
-            todo!()
+        const BYTES_TO_KB: usize = 1024;
+        const KB_TO_MB: usize = 1024;
+        const BYTES_TO_MB: usize = BYTES_TO_KB * KB_TO_MB;
+        const CHUNK_SIZE: usize = 4 * BYTES_TO_MB;
+
+        match &self.sid {
+            Some(sid) => {
+                let mut reader_stream = ReaderStream::new(file);
+                let async_stream = async_stream::stream! {
+                    let mut bytes_so_far = 0;
+
+                    while let Some(chunk) = reader_stream.next().await {
+                        if let Ok(chunk) = &chunk {
+                            bytes_so_far += chunk.len();
+
+                            if let Some(reporter) = &mut progress_reporter {
+                                reporter.update(bytes_so_far);
+                            }
+                        }
+                        yield chunk;
+                    }
+                };
+
+                let url = format!(
+                    "{}/webapi/entry.cgi?api={}&version={}&method={}&_sid={}&path={}&create_parents={}&overwrite={}",
+                    self.url,
+                    "SYNO.FileStation.Upload",
+                    2,
+                    "upload",
+                    sid,
+                    path,
+                    create_parents,
+                    overwrite
+                );
+
+                let url = match mtime {
+                    Some(mtime) => format!(
+                        "{}&mtime={}",
+                        url,
+                        mtime
+                    ),
+                    None => url
+                };
+
+                let url = match crtime {
+                    Some(crtime) => format!(
+                        "{}&crtime={}",
+                        url,
+                        crtime
+                    ),
+                    None => url
+                };
+
+                let url = match atime {
+                    Some(atime) => format!(
+                        "{}&atime={}",
+                        url,
+                        atime
+                    ),
+                    None => url
+                };
+
+                let _ = reqwest::Client::new()
+                    .post(url)
+                    .header("content-type", "application/octet-stream")
+                    .body(reqwest::Body::wrap_stream(async_stream))
+                    .send()
+                    .await?;
+
+                Ok(())
+            },
+            None => Err(SynologyErrorStatus::NotLoggedIn)
+        }
     }
 }

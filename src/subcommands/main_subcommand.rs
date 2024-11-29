@@ -11,12 +11,13 @@ use crate::{configuration::Configuration, credential_manager::CredentialManager,
 use super::Subcommand;
 
 struct StdOutProgressReporter {
-    git_lfs_progress_reporter: GitLfsProgressReporter
+    git_lfs_progress_reporter: GitLfsProgressReporter,
+    total_bytes: usize
 }
 
 impl ProgressReporter for StdOutProgressReporter {
-    fn update(&mut self, bytes_so_far: usize, total_bytes: usize) -> Result<()> {
-        let progress = 0.9 * bytes_so_far as f64 / total_bytes as f64;
+    fn update(&mut self, bytes_so_far: usize) -> Result<()> {
+        let progress = 0.9 * bytes_so_far as f64 / self.total_bytes as f64;
         self.git_lfs_progress_reporter.update(progress)
     }
 }
@@ -92,12 +93,12 @@ impl CustomTransferAgent for MainSubcommand {
             target_file_name
         );
 
-        let mut progress_reporter = StdOutProgressReporter {
-            git_lfs_progress_reporter
-        };
+        // let mut progress_reporter = StdOutProgressReporter {
+        //     git_lfs_progress_reporter
+        // };
 
-        let file_station = self.file_station.clone().context("File Station should not be null")?;
-        file_station.upload(file, path.as_str(), false, false, None, None, None, Some(&mut progress_reporter)).await?;
+        // let file_station = self.file_station.clone().context("File Station should not be null")?;
+        // file_station.upload(file, path.as_str(), false, false, None, None, None, Some(&mut progress_reporter)).await?;
         // Upload either the uncompressed blob or the original to the nas - 90%
 
         Ok(())
