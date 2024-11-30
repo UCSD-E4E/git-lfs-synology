@@ -84,6 +84,8 @@ pub enum SynologyErrorStatus {
     ReqwestError(#[from] reqwest::Error),
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
     #[error("TOTP required but not provided")]
     NoTotp,
     #[error("No user logged in")]
@@ -91,6 +93,10 @@ pub enum SynologyErrorStatus {
     #[error("An unknown error occurred.")]
     UnknownError
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct Empty {}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
@@ -109,7 +115,7 @@ pub struct SynologyError<TErrors> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct LoginResult {
+pub struct LoginResponse {
     pub sid: String
 }
 
@@ -122,7 +128,7 @@ pub struct LoginError {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
-pub struct CreateFolderResult {
+pub struct CreateFolderResponse {
     folders: Vec<FolderModel>
 }
 

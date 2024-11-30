@@ -1,8 +1,8 @@
 use std::io;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 use super::CustomTransferAgent;
 
@@ -26,18 +26,14 @@ impl GitLfsProgressReporter {
         }
     }
 
-    pub fn update(&mut self, progress: f64) -> Result<()> {
-        let progress_bytes = if progress < 1.0 {
-                (self.total_bytes as f64 * progress).floor() as usize
-            }
-            else {
-                self.total_bytes
-            };
+    pub fn update(&mut self, bytes_since_last: usize) -> Result<()> {
+        self.bytes_since_last = bytes_since_last;
+        self.bytes_so_far += bytes_since_last;
 
-        self.bytes_since_last = progress_bytes - self.bytes_so_far;
-        self.bytes_so_far = progress_bytes;
+        let progress_json = serde_json::to_string(self)?;
 
-        println!("{}", serde_json::to_string(self)?);
+        info!("Reporting progress: \"{}\".", progress_json);
+        println!("{}", progress_json);
         Ok(())
     }
 }
@@ -50,7 +46,25 @@ pub fn error_init(code: u32, message: &str) -> Result<()> {
         }
     };
 
-    println!("{}", serde_json::to_string(&error_json)?);
+    let error_json = serde_json::to_string(&error_json)?;
+
+    error!("Reporting error: \"{}\".", error_json);
+    println!("{}", error_json);
+    Ok(())
+}
+
+pub fn complete_upload(oid: &str) -> Result<()> {
+    let complete_json = EventJson {
+        event: "complete".to_string(),
+        oid: Some(oid.to_string()),
+        path: None,
+        size: None
+    };
+
+    let complete_json = serde_json::to_string(&complete_json)?;
+
+    info!("Reporting complete: \"{}\".", complete_json);
+    println!("{}", complete_json);
     Ok(())
 }
 
@@ -163,11 +177,13 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             match event.event {
                 EventType::Download => {
                     info!("Calling download on custom transfer agent.");
-                    self.custom_transfer_agent.download(&event).await?
+                    self.custom_transfer_agent.download(&event).await?;
                 },
                 EventType::Upload => {
                     info!("Calling upload on custom transfer agent.");
-                    self.custom_transfer_agent.upload(&event).await?
+                    self.custom_transfer_agent.upload(&event).await?;
+
+                    complete_upload(event.oid.context("OID should not be null")?.as_str())?;
                 },
                 EventType::Terminate => {
                     info!("Calling terminate on custom transfer agent.");

@@ -1,24 +1,20 @@
-use std::{fs::File, io::{Read, Write}};
-
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 use named_lock::NamedLock;
 use tracing::info;
-use zstd::Encoder;
 
 use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, GitLfsProgressReporter}, synology_api::{ProgressReporter, SynologyFileStation}};
 
 use super::Subcommand;
 
+#[derive(Debug)]
 struct StdOutProgressReporter {
-    git_lfs_progress_reporter: GitLfsProgressReporter,
-    total_bytes: usize
+    git_lfs_progress_reporter: GitLfsProgressReporter
 }
 
 impl ProgressReporter for StdOutProgressReporter {
-    fn update(&mut self, bytes_so_far: usize) -> Result<()> {
-        let progress = 0.9 * bytes_so_far as f64 / self.total_bytes as f64;
-        self.git_lfs_progress_reporter.update(progress)
+    fn update(&mut self, bytes_since_last: usize) -> Result<()> {
+        self.git_lfs_progress_reporter.update(bytes_since_last)
     }
 }
 
@@ -73,34 +69,22 @@ impl CustomTransferAgent for MainSubcommand {
     async fn upload(&mut self, event: &Event) -> Result<()> {
         let configuration = Configuration::load()?;
 
-        let mut git_lfs_progress_reporter = GitLfsProgressReporter::new(
+        let git_lfs_progress_reporter = GitLfsProgressReporter::new(
             event.size.clone().context("Size should not be null")?,
             event.oid.clone().context("oid should not be null")?);
 
-        let path = event.path.clone().context("Path should not be null.")?;
-        let (compressed, file) = self.compress_file(path.as_str(), event.size.context("Size should not be null")?, &mut git_lfs_progress_reporter)?;
+        let source_path = event.path.clone().context("Path should not be null.")?;
+        info!("Preparing to upload file at \"{}\".", source_path);
+        info!("Pushing to server path: \"{}\".", configuration.path);
 
-        let target_file_name = if compressed {
-            format!("{}.zst", event.oid.clone().context("oid should not be null")?)
-        }
-        else {
-            event.oid.clone().context("oid should not be null")?
+        let progress_reporter = StdOutProgressReporter {
+            git_lfs_progress_reporter
         };
 
-        let path = format!(
-            "{}/{}",
-            configuration.path,
-            target_file_name
-        );
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+        file_station.upload(source_path.as_str(), event.size.clone().context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
-        // let mut progress_reporter = StdOutProgressReporter {
-        //     git_lfs_progress_reporter
-        // };
-
-        // let file_station = self.file_station.clone().context("File Station should not be null")?;
-        // file_station.upload(file, path.as_str(), false, false, None, None, None, Some(&mut progress_reporter)).await?;
-        // Upload either the uncompressed blob or the original to the nas - 90%
-
+        info!("Upload finished.");
         Ok(())
     }
 }
@@ -120,55 +104,6 @@ impl MainSubcommand {
     pub fn new() -> MainSubcommand {
         MainSubcommand {
             file_station: None
-        }
-    }
-
-    #[tracing::instrument]
-    fn compress_file(&self, path: &str, size: usize, progress_reporter: &mut GitLfsProgressReporter) -> Result<(bool, File)> {
-        const BYTES_TO_KB: usize = 1024;
-        const KB_TO_MB: usize = 1024;
-        const BYTES_TO_MB: usize = BYTES_TO_KB * KB_TO_MB;
-        const CHUNK_SIZE: usize = 4 * BYTES_TO_MB;
-
-        let chunk_count = (size as f64 / CHUNK_SIZE as f64).ceil() as u64;
-
-        info!("Compressing file.  We have {} chunks.", chunk_count);
-
-        let mut source = File::open(path)?;
-
-        let target = tempfile::tempfile()?;
-        let mut encoder = Encoder::new(&target, 0)?;
-
-        let mut compressible = true;
-        let mut buffer = [0; CHUNK_SIZE];
-        for i in 0..chunk_count {
-            let count = source.read(&mut buffer)?;
-            let compressed_size = encoder.write(&buffer[..count])?;
-
-            if i == 0 && compressed_size < count {
-                info!("File is not compressible, aborting compression.");
-
-                compressible = false;
-                break // We are not compressible
-            }
-
-            let progress = 0.1 * (i + 1) as f64 / chunk_count as f64;
-            progress_reporter.update(progress)?;
-        }
-
-        let progress = 1.0 / 10.0;
-        progress_reporter.update(progress)?;
-
-        if compressible {
-            info!("Finished compressing.");
-
-            encoder.finish()?;
-            Ok((compressible, target))
-        }
-        else {
-            info!("Compression is not possible");
-
-            Ok((compressible, source))
         }
     }
 

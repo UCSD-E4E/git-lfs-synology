@@ -1,17 +1,14 @@
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, path::PathBuf};
 
-use futures_util::{StreamExt, TryFutureExt};
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
 use serde::de::DeserializeOwned;
-use tokio::fs::File;
-use tokio_util::io::ReaderStream;
 use tracing::{info, warn};
 use urlencoding::encode;
 
 use crate::credential_manager::Credential;
 
-use super::{responses::{CreateFolderResult, LoginError, LoginResult, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode}, ProgressReporter};
+use super::{responses::{CreateFolderResponse, LoginError, LoginResponse, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode}, ProgressReporter};
 
 #[derive(Clone, Debug)]
 pub struct SynologyFileStation {
@@ -76,8 +73,16 @@ impl SynologyFileStation {
                                 let result = serde_json::from_str::<SynologyResult<TData, TError>>(text.as_str());
 
                                 match result {
-                                    Ok(result) => Ok((result.data, result.error)),
-                                    Err(error) => Err(SynologyErrorStatus::SerdeError(error))
+                                    Ok(result) => {
+                                        info!("Successfully parsed response from server.");
+
+                                        Ok((result.data, result.error))
+                                    },
+                                    Err(error) => {
+                                        warn!("An error occurred while trying to process the results. \"{}\".", error);
+
+                                        Err(SynologyErrorStatus::SerdeError(error))
+                                    }
                                 }
                             },
                             Err(error) => Err(SynologyErrorStatus::ReqwestError(error))
@@ -100,7 +105,7 @@ impl SynologyFileStation {
 
         match error {
             Some(error) => {
-                info!("A server error occurred");
+                warn!("A server error occurred, {}.", error.code);
 
                 match FromPrimitive::from_u32(error.code) {
                     Some(code) => Err(SynologyErrorStatus::ServerError(code)),
@@ -120,7 +125,7 @@ impl SynologyFileStation {
         }
     }
 
-    pub async fn create_folder(&self, folder_path: &str, name: &str, force_parent: bool) -> Result<CreateFolderResult, SynologyErrorStatus> {
+    pub async fn create_folder(&self, folder_path: &str, name: &str, force_parent: bool) -> Result<CreateFolderResponse, SynologyErrorStatus> {
         let force_parent_string = force_parent.to_string();
 
         let mut parameters = HashMap::<&str, &str>::new();
@@ -143,7 +148,7 @@ impl SynologyFileStation {
 
         // Make initial request to the server.  This will fail if the user needs a TOTP.
         let response = reqwest::get(login_url).await;
-        let (mut login_result, login_error) = self.parse_data_and_error::<LoginResult, LoginError>(response).await?;
+        let (mut login_result, login_error) = self.parse_data_and_error::<LoginResponse, LoginError>(response).await?;
 
         match login_error {
             Some(login_error) => 
@@ -173,7 +178,7 @@ impl SynologyFileStation {
                                                     );
 
                                                     let response = reqwest::get(login_url).await;
-                                                    login_result= Some(self.parse::<LoginResult>(response).await?);
+                                                    login_result= Some(self.parse::<LoginResponse>(response).await?);
 
                                                     Ok(())
                                                 },
@@ -203,84 +208,81 @@ impl SynologyFileStation {
         }
     }
 
-    pub async fn upload<TProgressReporter: ProgressReporter>(&self,
-        file: File,
+    #[tracing::instrument]
+    pub async fn upload<TProgressReporter: ProgressReporter + 'static>(&self,
+        source_file_path: &str,
+        total_bytes: usize,
         path: &str,
         create_parents: bool,
         overwrite: bool,
         mtime: Option<u64>,
         crtime: Option<u64>,
         atime: Option<u64>,
-        mut progress_reporter: Option<&'static mut TProgressReporter>
+        progress_reporter: Option<TProgressReporter>
     ) -> Result<(), SynologyErrorStatus> {
-        const BYTES_TO_KB: usize = 1024;
-        const KB_TO_MB: usize = 1024;
-        const BYTES_TO_MB: usize = BYTES_TO_KB * KB_TO_MB;
-        const CHUNK_SIZE: usize = 4 * BYTES_TO_MB;
-
         match &self.sid {
             Some(sid) => {
-                let mut reader_stream = ReaderStream::new(file);
-                let async_stream = async_stream::stream! {
-                    let mut bytes_so_far = 0;
-
-                    while let Some(chunk) = reader_stream.next().await {
-                        if let Ok(chunk) = &chunk {
-                            bytes_so_far += chunk.len();
-
-                            if let Some(reporter) = &mut progress_reporter {
-                                reporter.update(bytes_so_far);
-                            }
-                        }
-                        yield chunk;
-                    }
-                };
-
                 let url = format!(
-                    "{}/webapi/entry.cgi?api={}&version={}&method={}&_sid={}&path={}&create_parents={}&overwrite={}",
+                    "{}/webapi/entry.cgi?api={}&version={}&method={}&_sid={}",
                     self.url,
                     "SYNO.FileStation.Upload",
                     2,
                     "upload",
-                    sid,
-                    path,
-                    create_parents,
-                    overwrite
+                    sid
                 );
 
-                let url = match mtime {
-                    Some(mtime) => format!(
-                        "{}&mtime={}",
-                        url,
-                        mtime
-                    ),
-                    None => url
+                info!("Uploading to \"{}\".", url);
+
+                let mut source_path = PathBuf::new();
+                source_path.push(source_file_path);
+                let source_file_name = match source_path.file_name() {
+                    Some(source_file_name) => Ok(source_file_name.to_string_lossy().to_string()),
+                    None => Err(SynologyErrorStatus::UnknownError)
+                }?;
+
+                let part = reqwest::multipart::Part::file(source_file_path.to_string())
+                    .await?
+                    .file_name(source_file_name)
+                    .mime_str("application/octet-stream")?;
+
+                let form = reqwest::multipart::Form::new()
+                    .text("path", path.to_string())
+                    .text("create_parents", create_parents.to_string())
+                    .text("overwrite", overwrite.to_string())
+                    .part("files", part);
+
+                let form = if let Some(mtime) = mtime {
+                    form.text("mtime", mtime.to_string())
+                }
+                else {
+                    form
                 };
 
-                let url = match crtime {
-                    Some(crtime) => format!(
-                        "{}&crtime={}",
-                        url,
-                        crtime
-                    ),
-                    None => url
+                let form = if let Some(crtime) = crtime {
+                    form.text("crtime", crtime.to_string())
+                }
+                else {
+                    form
                 };
 
-                let url = match atime {
-                    Some(atime) => format!(
-                        "{}&atime={}",
-                        url,
-                        atime
-                    ),
-                    None => url
+                let form = if let Some(atime) = atime {
+                    form.text("atime", atime.to_string())
+                }
+                else {
+                    form
                 };
 
-                let _ = reqwest::Client::new()
+                let response = reqwest::Client::new()
                     .post(url)
-                    .header("content-type", "application/octet-stream")
-                    .body(reqwest::Body::wrap_stream(async_stream))
+                    .multipart(form)
                     .send()
-                    .await?;
+                    .await;
+                let _ = self.parse::<crate::synology_api::responses::Empty>(response).await?;
+
+                if let Some(mut progress_reporter) = progress_reporter {
+                    info!("Reporting complete progress.");
+                    let _ = progress_reporter.update(total_bytes); // We don't care if we fail to update.
+                }
 
                 Ok(())
             },

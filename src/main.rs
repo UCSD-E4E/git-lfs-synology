@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Arg, Command};
-use tracing::error;
+use tracing::{error, info};
 use users_dirs::get_config_dir;
 use tracing_appender::rolling;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
@@ -103,11 +103,12 @@ async fn main() -> Result<()> {
         }
     };
 
+    info!("Exiting...");
+
     match result {
         Ok(_) => Ok(()),
         Err(error) => {
-            error!("An error bubbled to the main method: \"{}\".", error);
-
+            error!("An error bubbled to the main method: \"{:?}\".", error);
             Err(error)
         }
     }
