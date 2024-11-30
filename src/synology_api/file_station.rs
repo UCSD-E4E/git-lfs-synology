@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::{Path, PathBuf}};
 
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
@@ -125,6 +125,7 @@ impl SynologyFileStation {
         }
     }
 
+    #[tracing::instrument]
     pub async fn create_folder(&self, folder_path: &str, name: &str, force_parent: bool) -> Result<CreateFolderResponse, SynologyErrorStatus> {
         let force_parent_string = force_parent.to_string();
 
@@ -134,6 +135,15 @@ impl SynologyFileStation {
         parameters.insert("force_parent", force_parent_string.as_str());
 
         Ok(self.get("SYNO.FileStation.CreateFolder", "create", 2, &parameters).await?)
+    }
+
+    #[tracing::instrument]
+    pub async fn download<TProgressReporter: ProgressReporter + 'static>(
+        &self,
+        source_file_path: &str,
+        target_directory_path: &Path,
+        progress_reporter: Option<TProgressReporter>) -> Result<(), SynologyErrorStatus> {
+            Ok(())
     }
 
     #[tracing::instrument]
@@ -210,9 +220,9 @@ impl SynologyFileStation {
 
     #[tracing::instrument]
     pub async fn upload<TProgressReporter: ProgressReporter + 'static>(&self,
-        source_file_path: &str,
+        source_file_path: &Path,
         total_bytes: usize,
-        path: &str,
+        target_directory_path: &str,
         create_parents: bool,
         overwrite: bool,
         mtime: Option<u64>,
@@ -240,13 +250,18 @@ impl SynologyFileStation {
                     None => Err(SynologyErrorStatus::UnknownError)
                 }?;
 
-                let part = reqwest::multipart::Part::file(source_file_path.to_string())
+                let file_path_string = match source_file_path.as_os_str().to_str() {
+                    Some(file_path_string) => Ok(file_path_string),
+                    None => Err(SynologyErrorStatus::UnknownError)
+                }?;
+
+                let part = reqwest::multipart::Part::file(file_path_string)
                     .await?
                     .file_name(source_file_name)
                     .mime_str("application/octet-stream")?;
 
                 let form = reqwest::multipart::Form::new()
-                    .text("path", path.to_string())
+                    .text("path", target_directory_path.to_string())
                     .text("create_parents", create_parents.to_string())
                     .text("overwrite", overwrite.to_string())
                     .part("files", part);

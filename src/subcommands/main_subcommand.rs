@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 use named_lock::NamedLock;
@@ -25,7 +27,39 @@ pub struct MainSubcommand {
 
 impl CustomTransferAgent for MainSubcommand {
     #[tracing::instrument]
-    async fn download(&mut self, _: &Event) -> Result<()> {
+    async fn download(&mut self, event: &Event) -> Result<()> {
+        let configuration = Configuration::load()?;
+        let oid = event.oid.clone().context("OID should not be null")?;
+
+        let git_lfs_progress_reporter = GitLfsProgressReporter::new(
+            event.size.clone().context("Size should not be null")?,
+            event.oid.clone().context("oid should not be null")?);
+
+        let source_file_path = format!(
+            "{}/{}",
+            configuration.path,
+            oid
+        );
+
+        info!("Source path is \"{}\".", source_file_path);
+
+        let mut target_directory_path = PathBuf::new();
+        target_directory_path.push(".");
+        target_directory_path.push(".git");
+        target_directory_path.push("lfs");
+        target_directory_path.push("objects");
+        target_directory_path.push(oid[..2].to_string());
+        target_directory_path.push(oid[2..4].to_string());
+        
+        info!("Target path is \"{}\".", target_directory_path.as_os_str().to_string_lossy());
+
+        let progress_reporter = StdOutProgressReporter {
+            git_lfs_progress_reporter
+        };
+
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+        file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
+
         Ok(())
     }
 
@@ -81,8 +115,9 @@ impl CustomTransferAgent for MainSubcommand {
             git_lfs_progress_reporter
         };
 
+        let source_path = Path::new(source_path.as_str());
         let file_station = self.file_station.clone().context("File Station should not be null")?;
-        file_station.upload(source_path.as_str(), event.size.clone().context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
+        file_station.upload(source_path, event.size.clone().context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
         info!("Upload finished.");
         Ok(())

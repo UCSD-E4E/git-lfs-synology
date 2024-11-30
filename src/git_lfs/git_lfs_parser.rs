@@ -97,10 +97,8 @@ struct ErrorJsonInner {
 
 #[derive(Debug)]
 pub enum EventType {
-    // Complete,
     Download,
     Init,
-    // Progress,
     Terminate,
     Upload
 }
