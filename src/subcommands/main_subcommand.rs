@@ -27,7 +27,7 @@ pub struct MainSubcommand {
 
 impl CustomTransferAgent for MainSubcommand {
     #[tracing::instrument]
-    async fn download(&mut self, event: &Event) -> Result<()> {
+    async fn download(&mut self, event: &Event) -> Result<PathBuf> {
         let configuration = Configuration::load()?;
         let oid = event.oid.clone().context("OID should not be null")?;
 
@@ -58,9 +58,10 @@ impl CustomTransferAgent for MainSubcommand {
         };
 
         let file_station = self.file_station.clone().context("File Station should not be null")?;
-        file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
+        let target_file_path = file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
 
-        Ok(())
+        info!("Download finished");
+        Ok(target_file_path)
     }
 
     #[tracing::instrument]

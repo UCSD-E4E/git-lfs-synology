@@ -68,6 +68,21 @@ pub fn complete_upload(oid: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn complete_download(oid: &str, path: &str) -> Result<()> {
+    let complete_json = EventJson {
+        event: "complete".to_string(),
+        oid: Some(oid.to_string()),
+        path: Some(path.to_string()),
+        size: None
+    };
+
+    let complete_json = serde_json::to_string(&complete_json)?;
+
+    info!("Reporting complete: \"{}\".", complete_json);
+    println!("{}", complete_json);
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct EventJson {
     event: String,
@@ -175,7 +190,11 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             match event.event {
                 EventType::Download => {
                     info!("Calling download on custom transfer agent.");
-                    self.custom_transfer_agent.download(&event).await?;
+                    let path = self.custom_transfer_agent.download(&event).await?;
+
+                    complete_download(
+                        event.oid.context("OID should not be null")?.as_str(),
+                        path.as_os_str().to_str().context("Path should not be null")?)?;
                 },
                 EventType::Upload => {
                     info!("Calling upload on custom transfer agent.");

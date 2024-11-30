@@ -3,6 +3,7 @@ use std::{collections::HashMap, path::{Path, PathBuf}};
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
 use serde::de::DeserializeOwned;
+use tokio::{fs::File, io::AsyncWriteExt};
 use tracing::{info, warn};
 use urlencoding::encode;
 
@@ -142,8 +143,67 @@ impl SynologyFileStation {
         &self,
         source_file_path: &str,
         target_directory_path: &Path,
-        progress_reporter: Option<TProgressReporter>) -> Result<(), SynologyErrorStatus> {
-            Ok(())
+        mut progress_reporter: Option<TProgressReporter>) -> Result<PathBuf, SynologyErrorStatus> {
+            match &self.sid {
+                Some(sid) => {
+                    info!("Found sid, continuing.");
+                    match source_file_path.split("/").last() {
+                        Some(file_name) => {
+                            info!("Found file name: \"{}\".", file_name);
+                            let url = format!(
+                                "{}/webapi/entry.cgi?api={}&version={}&method={}&_sid={}&path={}&mode=download",
+                                self.url,
+                                "SYNO.FileStation.Download",
+                                2,
+                                "download",
+                                sid.as_str(),
+                                source_file_path
+                            );
+                            info!("Get: \"{}\".", url);
+        
+                            let mut target_file_path = PathBuf::new();
+                            target_file_path.push(target_directory_path);
+                            target_file_path.push(file_name);
+
+                            info!("Target File Path: \"{}\".", target_file_path.as_os_str().to_string_lossy());
+        
+                            let mut target_stream = File::create(&target_file_path).await?;
+                            let mut response = reqwest::get(url).await?;
+
+                            while let Ok(chunk) = response.chunk().await {
+                                if let Some(chunk) = chunk {
+                                    if let Some(progress_reporter) = &mut progress_reporter {
+                                        let result = progress_reporter.update(chunk.len());
+
+                                        if let Err(error) = result {
+                                            warn!("An error occurred reporting progress: \"{error}\".");
+                                        }
+                                    }
+
+                                    target_stream.write(&chunk).await?;
+                                }
+                                else {
+                                    break;
+                                }
+                            }
+
+                            if let Some(mut progress_reporter) = progress_reporter {
+                                if let Some(total_bytes) = response.content_length(){
+                                    info!("Reporting complete progress.");
+                                    let result = progress_reporter.update(total_bytes as usize );
+                
+                                    if let Err(error) = result {
+                                        warn!("An error occurred reporting progress: \"{error}\".");
+                                    }
+                                }
+                            }
+                            Ok(target_file_path)
+                        },
+                        None => Err(SynologyErrorStatus::UnknownError)
+                    }
+                }
+                None => Err(SynologyErrorStatus::NotLoggedIn)
+            }
     }
 
     #[tracing::instrument]
@@ -296,7 +356,11 @@ impl SynologyFileStation {
 
                 if let Some(mut progress_reporter) = progress_reporter {
                     info!("Reporting complete progress.");
-                    let _ = progress_reporter.update(total_bytes); // We don't care if we fail to update.
+                    let result = progress_reporter.update(total_bytes);
+
+                    if let Err(error) = result {
+                        warn!("An error occurred reporting progress: \"{error}\".");
+                    }
                 }
 
                 Ok(())
