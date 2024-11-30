@@ -22,6 +22,9 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 brew install git-lfs
 ```
 
+### Published Release
+Download the most recent [release](https://github.com/UCSD-E4E/git-lfs-synology/releases) and ensure the binary is on your path.
+
 ### Cargo
 Install all the development dependencies and then execute the following.
 ```bash
