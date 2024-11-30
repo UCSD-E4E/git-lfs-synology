@@ -26,7 +26,7 @@ brew install git-lfs
 Download the most recent [release](https://github.com/UCSD-E4E/git-lfs-synology/releases) and ensure the binary is on your path.
 
 ### Cargo
-Install all the development dependencies and then execute the following.
+Install all the development dependencies and then execute the following. Note that this will not properly set the version and should only be used for testing.
 ```bash
 cargo install --git https://github.com/UCSD-E4E/git-lfs-synology.git git-lfs-synology
 ```
