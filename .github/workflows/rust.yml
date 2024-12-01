@@ -22,7 +22,7 @@ jobs:
         sudo apt-get install -y libdbus-1-dev \
                                 pkg-config
     - name: Install Clippy
-      run: cargo install clippy
+      run: rustup component add clippy
     - name: Run Clippy
       run: cargo clippy -- -D warnings
     - name: Run tests
@@ -45,7 +45,7 @@ jobs:
     - name: Install Rust Toolchains
       run: rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
     - name: Install Clippy
-      run: cargo install clippy
+      run: rustup component add clippy
     - name: Run Clippy
       run: cargo clippy -- -D warnings
     - name: Run tests
@@ -74,7 +74,7 @@ jobs:
     - name: Install Rust Toolchains
       run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
     - name: Install Clippy
-      run: cargo install clippy
+      run: rustup component add clippy
     - name: Run Clippy
       run: cargo clippy -- -D warnings
     - name: Run tests
