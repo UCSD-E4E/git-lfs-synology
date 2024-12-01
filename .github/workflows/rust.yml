@@ -28,9 +28,6 @@ jobs:
         platforms: linux/amd64,linux/arm64
         tags: builder
         file: .github/workflows/Dockerfile.build
-    - name: Build Rust
-      run: |
-        docker run --rm -v .:/workspace --platform=linux/amd64 builder
     - name: Archive Linux x86_64 Results
       uses: actions/upload-artifact@v4
       with:

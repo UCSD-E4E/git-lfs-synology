@@ -8,7 +8,9 @@ RUN apt-get update && \
 
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 
-RUN mkdir -p /workspace
+COPY . /workspace
 WORKDIR /workspace
 
-CMD ["/bin/bash", "-c", ". $HOME/.cargo/env && cargo test --verbose && cargo build --verbose --release"]
+RUN . $HOME/.cargo/env && \
+    cargo test --verbose && \
+    cargo build --verbose --release
