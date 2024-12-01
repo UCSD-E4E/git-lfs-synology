@@ -10,35 +10,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-
   build-ubuntu:
-    
+
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build Container
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        tags: builder
-        file: .github/workflows/Dockerfile.build
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libdbus-1-dev \
+                                pkg-config
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Build
+      run: |
+        cargo build --verbose --release --target=x86_64-unknown-linux-gnu
     - name: Archive Linux x86_64 Results
       uses: actions/upload-artifact@v4
       with:
         name: git-lfs-synology.linux-x86_64
         path: ./target/x86_64-unknown-linux-gnu/release/git-lfs-synology
-    - name: Archive Linux aarch64 Results
-      uses: actions/upload-artifact@v4
-      with:
-        name: git-lfs-synology.linux-aarch64
-        path: ./target/aarch64-unknown-linux-gnu/release/git-lfs-synology
-
 
   build-windows:
 
