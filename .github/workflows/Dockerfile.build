@@ -7,5 +7,6 @@ RUN apt-get update && \
 
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 
-RUN PATH="/root/.cargo/bin:${PATH}" cargo test --verbose
-RUN PATH="/root/.cargo/bin:${PATH}" cargo build --verbose --release
+RUN . $HOME/.cargo/env && \
+    cargo test --verbose && \
+    cargo build --verbose --release
