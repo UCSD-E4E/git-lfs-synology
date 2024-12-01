@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## v0.1.0
 
 ### 🚀 Features
 
