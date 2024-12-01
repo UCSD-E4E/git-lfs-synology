@@ -81,8 +81,8 @@ impl CredentialManager {
 
     #[tracing::instrument]
     fn clean_url(&self, url: &str) -> String {
-        if url.ends_with("/") {
-            return url[..url.len() - 1].to_string();
+        if let Some(url) = url.strip_suffix("/") {
+            return url.to_string();
         }
         
         return url.to_string();
@@ -118,7 +118,7 @@ impl CredentialManager {
                 totp_comand_encrypted: row.get(1)?,
                 totp_nonce: row.get(2)?
             })
-        })?.filter_map(|r| r.ok()).collect::<Vec<DatabaseCredential>>().try_into()?;
+        })?.filter_map(|r| r.ok()).collect::<Vec<DatabaseCredential>>();
 
         debug!(count=rows.len(), "Found user rows.");
         Ok(rows)
@@ -145,16 +145,16 @@ impl CredentialManager {
 
     #[tracing::instrument]
     fn get_entry(&mut self, url: &str, user: &str) -> Result<&Entry>{
-        if !self.entry_cache.contains_key(&(url.to_string(), user.to_string())) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.entry_cache.entry((url.to_string(), user.to_string())) {
             debug!(user=user, url=url, "Entry did not exist in cache.");
 
             info!("Creating entry.");
             let entry = Entry::new(url, user)?;
-            self.entry_cache.insert((url.to_string(), user.to_string()), entry);
+            e.insert(entry);
         }
 
         info!("Returning entry from cache.");
-        Ok(self.entry_cache.get(&(url.to_string(), user.to_string())).context("Entry does not exist in cache")?)
+        self.entry_cache.get(&(url.to_string(), user.to_string())).context("Entry does not exist in cache")
     }
 
     #[tracing::instrument]
@@ -195,7 +195,7 @@ impl CredentialManager {
 
             let nonce_vec = database_credential.totp_nonce.clone().context("No nonce provided for credential")?;
 
-            let cipher = Aes256Gcm::new(&key);
+            let cipher = Aes256Gcm::new(key);
             let nonce = Nonce::from_iter(nonce_vec);
             let plaintext = cipher.decrypt(
                 &nonce, 
@@ -263,7 +263,7 @@ impl CredentialManager {
             let padded_password = self.pad_string(credential.password.as_str());
             let key: &Key<Aes256Gcm> = padded_password.as_bytes().into();
 
-            let cipher = Aes256Gcm::new(&key);
+            let cipher = Aes256Gcm::new(key);
             let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 96-bits; unique per message
             let ciphertext = cipher.encrypt(&nonce, credential.totp_command.clone().context("TOTP Command does not exist.")?.as_bytes())?;
 

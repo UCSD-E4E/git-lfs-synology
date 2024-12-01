@@ -135,7 +135,7 @@ impl SynologyFileStation {
         parameters.insert("name", name);
         parameters.insert("force_parent", force_parent_string.as_str());
 
-        Ok(self.get("SYNO.FileStation.CreateFolder", "create", 2, &parameters).await?)
+        self.get("SYNO.FileStation.CreateFolder", "create", 2, &parameters).await
     }
 
     #[tracing::instrument]
@@ -172,15 +172,15 @@ impl SynologyFileStation {
 
                             while let Ok(chunk) = response.chunk().await {
                                 if let Some(chunk) = chunk {
+                                    let write_len = target_stream.write(&chunk).await?;
+
                                     if let Some(progress_reporter) = &mut progress_reporter {
-                                        let result = progress_reporter.update(chunk.len());
+                                        let result = progress_reporter.update(write_len);
 
                                         if let Err(error) = result {
                                             warn!("An error occurred reporting progress: \"{error}\".");
                                         }
                                     }
-
-                                    target_stream.write(&chunk).await?;
                                 }
                                 else {
                                     break;
@@ -278,6 +278,7 @@ impl SynologyFileStation {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // Allow this so that we better match the Synology API.
     #[tracing::instrument]
     pub async fn upload<TProgressReporter: ProgressReporter + 'static>(&self,
         source_file_path: &Path,

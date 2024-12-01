@@ -146,7 +146,7 @@ impl<'custom_transfer_agent, T: CustomTransferAgent> GitLfsParser<'custom_transf
             event: event_type,
             oid: event.oid.clone(),
             path: event.path.clone(),
-            size: event.size.clone()
+            size: event.size
         })
     }
 

@@ -34,10 +34,7 @@ impl Subcommand for LoginSubcommand {
         let totp_command = match totp_command {
             Some(totp_command) => Some(totp_command.clone()),
             None => match credential_ref {
-                Some(credential) => match credential.totp_command {
-                    Some(totp_command) => Some(totp_command),
-                    None => None
-                },
+                Some(credential) => credential.totp_command,
                 None => None
             }
         };
