@@ -53,7 +53,7 @@ git-lfs-synology login --url https://e4e-nas.ucsd.edu:6021 --user <username> # E
 git-lfs-synology login --url https://e4e-nas.ucsd.edu:6021 --user <username> --totp-command "<totp_command>" # Ensure you update your username and totp command
 ```
 
-### Globally
+### Configuring the Custom Transfer Agent Globally
 Run these steps to update your git config globally.  You may not want to perform these if you use other Git LFS implementations.
 
 #### Bash
@@ -62,7 +62,7 @@ git config --global lfs.standalonetransferagent git-lfs-synology
 git config --global lfs.customtransfer.git-lfs-synology.path `which git-lfs-synology`
 ```
 
-### Locally
+### Configuring the Custom Transfer Agent Locally
 Run these steps locally within the repository you want to setup Git LFS Synology in if you don't want to update your global git settings.
 
 #### Bash
