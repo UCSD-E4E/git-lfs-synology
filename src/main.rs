@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Arg, Command};
+use clap::{crate_version, Arg, Command};
 use tracing::{error, info};
 use users_dirs::get_config_dir;
 use tracing_appender::rolling;
@@ -35,6 +35,7 @@ fn cli() -> Command {
     Command::new("git-lfs-synology")
         .about("This is an implementation of a git lfs custom transfer agent. See https://github.com/git-lfs/git-lfs/blob/main/docs/custom-transfers.md for more information.")
         .allow_external_subcommands(true)
+        .version(crate_version!())
         .subcommand(
             Command::new("login")
                 .about("Allows logging into the Synology NAS.")
