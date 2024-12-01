@@ -41,29 +41,31 @@ cargo uninstall git-lfs-synology
 ## Configuring Git LFS
 It is necessary for you to provide `git-lfs-synology` your password and a method to generate TOTP codes. It stores your username and password in your operating system's keyring and uses your password to encrypt your TOTP command if one is provided. It stores the encrypted TOTP command within a sqlite database in your system's configuration directory. To store your username and password, perform these steps.
 
-### No TOTP command
+### Logging In
+
+#### No TOTP command
 ```bash
 git-lfs-synology login --url https://e4e-nas.ucsd.edu:6021 --user <username> # Ensure you update your username
 ```
 
-### TOTP command
+#### TOTP command
 ```bash
 git-lfs-synology login --url https://e4e-nas.ucsd.edu:6021 --user <username> --totp-command "<totp_command>" # Ensure you update your username and totp command
 ```
 
-## Globally
+### Globally
 Run these steps to update your git config globally.  You may not want to perform these if you use other Git LFS implementations.
 
-### Bash
+#### Bash
 ```bash
 git config --global lfs.standalonetransferagent git-lfs-synology
 git config --global lfs.customtransfer.git-lfs-synology.path `which git-lfs-synology`
 ```
 
-## Locally
+### Locally
 Run these steps locally within the repository you want to setup Git LFS Synology in if you don't want to update your global git settings.
 
-### Bash
+#### Bash
 ```bash
 git config lfs.standalonetransferagent git-lfs-synology
 git config lfs.customtransfer.git-lfs-synology.path `which git-lfs-synology`
