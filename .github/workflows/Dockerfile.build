@@ -5,12 +5,8 @@ RUN apt-get update && \
                         pkg-config \
                         curl
 
-USER ubuntu
-ENV HOME="/home/ubuntu"
-RUN mkdir -p ${HOME}
-WORKDIR ${HOME}
-
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-RUN . ${HOME}/.cargo/env && cargo test --verbose
+RUN cargo test --verbose
 RUN cargo build --verbose --release
