@@ -70,7 +70,7 @@ function Invoke-InstallScript {
 
         if ($IsWindows) {
             # This only works on Windows.
-            [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+            [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::User)
         }
         else {
             Write-Warning "Your PATH environment variable has been updated for this session. Please add 'export PATH=$($targetPath):`$PATH' to your shell's profile.  For example, ~/.bashrc for Bash."
