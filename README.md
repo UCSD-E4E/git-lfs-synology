@@ -15,18 +15,32 @@ sudo apt-get install -y libdbus-1-dev pkg-config curl
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-## Installing
+## Dependencies
 
 ### macOS
 ```bash
 brew install git-lfs
 ```
 
+### Ubuntu
+```bash
+sudo apt-get install git-lfs
+```
+
+## Installing
+
 ### Published Release (Preferred)
-Download the most recent [release](https://github.com/UCSD-E4E/git-lfs-synology/releases) and ensure the binary is on your path.
+Download the most recent [release](https://github.com/UCSD-E4E/git-lfs-synology/releases) and ensure the binary is on your path. We have provided install scripts for simplicity.
+
+#### Windows
+These install scripts install `git-lfs-synology` globally. This will impact all git repos on your system. Please install manually if this is something that you need to avoid.
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression (Invoke-WebRequest https://raw.githubusercontent.com/UCSD-E4E/git-lfs-synology/refs/heads/main/scripts/install-system.ps1).Content; Invoke-InstallScript
+```
 
 ### Cargo
-Install all the development dependencies and then execute the following. Note that this will not properly set the version and should only be used for testing.
+Install all the development dependencies and then execute the following.
 ```bash
 cargo install --git https://github.com/UCSD-E4E/git-lfs-synology.git git-lfs-synology
 ```
