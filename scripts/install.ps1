@@ -25,9 +25,9 @@ function Invoke-InstallScript {
         Default     { "unknown" }
     }
 
-    if ($platform -ne "win") {
+    if ($platform -eq "win") {
         $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
-            "AMD64" { "x86_64"}
+            "AMD64" { "x86_64" }
             "ARM64" { "aarch64" }
             Default { "unknown" }
         }
