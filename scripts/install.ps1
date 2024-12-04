@@ -25,9 +25,9 @@ function Invoke-InstallScript {
         Default     { "unknown" }
     }
 
-    if ($osPlatform -ne "win") {
+    if ($platform -ne "win") {
         $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
-            "AMD64" { "x86_64 "}
+            "AMD64" { "x86_64"}
             "ARM64" { "aarch64" }
             Default { "unknown" }
         }
@@ -70,7 +70,7 @@ function Invoke-InstallScript {
 
     # Update the Path Environment Variable
     if (-not ($targetPath -in $env:PATH)) {
-        if ($osPlatform -eq "win") {
+        if ($platform -eq "win") {
             $seperator = ";"
         }
         else {
@@ -79,7 +79,7 @@ function Invoke-InstallScript {
 
         $env:PATH = "$($targetPath)$($seperator)$($env:PATH)"
 
-        if ($osPlatform -eq "win") {
+        if ($platform -eq "win") {
             # This only works on Windows.
             [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::User)
         }
@@ -92,7 +92,7 @@ function Invoke-InstallScript {
     git-lfs-synology login --url $URL --user $User
 
     # Get the suffix
-    if ($osPlatform -eq "win") {
+    if ($platform -eq "win") {
         $suffix = ".exe"
     }
     else {
