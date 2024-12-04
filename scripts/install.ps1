@@ -24,10 +24,21 @@ function Invoke-InstallScript {
         "*Darwin*"  { "osx" } # MacOS is identified as Darwin
         Default     { "unknown" }
     }
-    $arch = switch ($architecture) {
-        "X64"  { "x86_64" }
-        "Arm64" { "aarch64" }
-        Default { "unknown" }
+
+    if ($osPlatform -ne "win") {
+        $arch = switch ($env:PROCESSOR_ARCHITECTURE) {
+            "AMD64" { "x86_64 "}
+            "ARM64" { "aarch64" }
+            Default { "unknown" }
+        }
+    }
+    else {
+        # Not Windows
+        $arch = switch ($architecture) {
+            "X64"  { "x86_64" }
+            "Arm64" { "aarch64" }
+            Default { "unknown" }
+        }
     }
 
     # Construct the asset name.
@@ -59,7 +70,7 @@ function Invoke-InstallScript {
 
     # Update the Path Environment Variable
     if (-not ($targetPath -in $env:PATH)) {
-        if ($IsWindows) {
+        if ($osPlatform -eq "win") {
             $seperator = ";"
         }
         else {
@@ -68,7 +79,7 @@ function Invoke-InstallScript {
 
         $env:PATH = "$($targetPath)$($seperator)$($env:PATH)"
 
-        if ($IsWindows) {
+        if ($osPlatform -eq "win") {
             # This only works on Windows.
             [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::User)
         }
@@ -81,7 +92,7 @@ function Invoke-InstallScript {
     git-lfs-synology login --url $URL --user $User
 
     # Get the suffix
-    if ($IsWindows) {
+    if ($osPlatform -eq "win") {
         $suffix = ".exe"
     }
     else {

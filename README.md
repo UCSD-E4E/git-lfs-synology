@@ -35,6 +35,8 @@ Download the most recent [release](https://github.com/UCSD-E4E/git-lfs-synology/
 #### Windows
 These install scripts install `git-lfs-synology` globally. This will impact all git repos on your system. Please install manually if this is something that you need to avoid.
 
+Please install this using PowerShell as your user. Do NOT execute this from an admin shell.
+
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression (Invoke-WebRequest https://raw.githubusercontent.com/UCSD-E4E/git-lfs-synology/refs/heads/main/scripts/install.ps1?bust=$((Get-Date).Ticks)).Content; Invoke-InstallScript
 ```
