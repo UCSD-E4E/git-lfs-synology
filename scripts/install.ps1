@@ -78,7 +78,7 @@ function Invoke-InstallScript {
     }
 
     # Log into the server
-    git-lfs-login --url $URL --user $User
+    git-lfs-synology --url $URL --user $User
 
     # Get the suffix
     if ($IsWindows) {
