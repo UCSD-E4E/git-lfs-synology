@@ -232,7 +232,7 @@ impl SynologyFileStation {
                                     Some(errors) =>
                                         if errors.types.iter().any(|f| f.contains_key("type") && f["type"] == "otp") {
                                             info!("Server requested TOTP");
-                                            let totp = credential.totp();
+                                            let totp: Option<String> = None;
 
                                             match totp {
                                                 Some(totp) => {

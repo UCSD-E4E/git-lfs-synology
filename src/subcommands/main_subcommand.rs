@@ -148,7 +148,7 @@ impl MainSubcommand {
         let configuration = Configuration::load()?;
 
         // This is a System wide, cross-process lock.
-        let lock = NamedLock::create("git-lfs-synology::MianSubcommand::create_folder")?;
+        let lock = NamedLock::create("git-lfs-synology::MainSubcommand::create_folder")?;
         let _guard = lock.lock()?;
 
         let file_station = self.file_station.clone().context("File Station should not be null.")?;

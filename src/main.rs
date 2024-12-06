@@ -55,12 +55,6 @@ fn cli() -> Command {
                         .required(true)
                         .help("The URL for the Synology NAS")
                 )
-                .arg(
-                    Arg::new("TOTP_COMMAND")
-                        .short('c')
-                        .long("totp-command")
-                        .help("A command which generates a TOTP code required to log into the Synology NAS.")
-                )
         )
         .subcommand(
             Command::new("logout")

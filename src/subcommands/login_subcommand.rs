@@ -15,7 +15,6 @@ impl Subcommand for LoginSubcommand {
     async fn execute(&mut self, arg_matches: &ArgMatches) -> Result<()> {
         let url = arg_matches.get_one::<String>("URL").context("URL not provided.")?;
         let user = arg_matches.get_one::<String>("USER").context("USER not provided.")?;
-        let totp_command = arg_matches.get_one::<String>("TOTP_COMMAND");
 
         let mut credential_manager = CredentialManager::new()?;
 
@@ -31,18 +30,9 @@ impl Subcommand for LoginSubcommand {
             credential_ref = None;
         }
 
-        let totp_command = match totp_command {
-            Some(totp_command) => Some(totp_command.clone()),
-            None => match credential_ref {
-                Some(credential) => credential.totp_command,
-                None => None
-            }
-        };
-
         let credential = Credential::new(
             user.clone(),
-            password.clone(),
-            totp_command);
+            password.clone());
 
         let mut file_station = SynologyFileStation::new(url);
         file_station.login(&credential).await?;
