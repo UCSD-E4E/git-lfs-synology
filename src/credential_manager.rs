@@ -33,22 +33,15 @@ pub struct Credential {
     pub user: String,
     #[educe(Debug(ignore))] // Do not include password in logs.
     pub password: String,
-    pub totp: Option<String>,
     pub device_id: Option<String>
 }
 
 impl Credential {
     #[tracing::instrument]
     pub fn new(user: String, password: String) -> Credential {
-        Credential::new_totp(user, password, None)
-    }
-
-    #[tracing::instrument]
-    pub fn new_totp(user: String, password: String, totp: Option<String>) -> Credential {
         Credential {
             user,
             password,
-            totp,
             device_id: None
         }
     }
@@ -158,12 +151,11 @@ impl CredentialManager {
             Ok(version) => {
                 match version {
                     0 => {
-                        conn.execute(
+                        conn.execute_batch(
                             "ALTER TABLE Credentials DROP COLUMN totp_command_encrypted;
                              ALTER TABLE Credentials DROP COLUMN totp_nonce;
                              ALTER TABLE Credentials ADD COLUMN device_id_encrypted BLOB;
                              ALTER TABLE Credentials ADD COLUMN device_id_nonce BLOB;",
-                            (), // empty list of parameters.
                         )?;
 
                         self.create_tables(&conn)

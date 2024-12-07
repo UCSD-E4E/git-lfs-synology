@@ -73,7 +73,7 @@ impl CustomTransferAgent for MainSubcommand {
         let mut file_station = SynologyFileStation::new(nas_url);
 
         let credential = credential_manager.get_credential(nas_url)?.context("Credential should not be null")?;
-        match file_station.login(&credential).await {
+        match file_station.login(&credential, false, None).await {
             Ok(_) => Ok(()),
             Err(error) => {
                 error_init(1, error.to_string().as_str())?;

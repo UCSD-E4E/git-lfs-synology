@@ -13,6 +13,7 @@ educe = "0.6.0"
 futures-macro = "0.3.31"
 futures-util = "0.3.31"
 gix-config = "0.42.0"
+hostname = "0.4.0"
 keyring = { version = "3.6.1", features = ["apple-native", "windows-native", "sync-secret-service"] }
 named-lock = "0.4.1"
 num-derive = "0.4.2"

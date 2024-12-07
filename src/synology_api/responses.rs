@@ -116,7 +116,8 @@ pub struct SynologyError<TErrors> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde[rename_all = "snake_case"]]
 pub struct LoginResponse {
-    pub sid: String
+    pub sid: String,
+    pub did: Option<String>
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
