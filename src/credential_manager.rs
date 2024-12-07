@@ -145,7 +145,7 @@ impl CredentialManager {
         info!("Creating Credentials table in user database.");
 
         let conn = &self.connection;
-        let version = self.get_database_version(&conn);
+        let version = self.get_database_version(conn);
 
         match version {
             Ok(version) => {
@@ -158,7 +158,7 @@ impl CredentialManager {
                              ALTER TABLE Credentials ADD COLUMN device_id_nonce BLOB;",
                         )?;
 
-                        self.create_tables(&conn)
+                        self.create_tables(conn)
                     }
                     1 => {
                         // Up to date. Do Nothing
@@ -171,7 +171,7 @@ impl CredentialManager {
             Err(err) =>
                 match err {
                     CredentialError::DatabaseNotInitialized => {
-                        self.create_tables(&conn)
+                        self.create_tables(conn)
                     },
                     _ => Err(anyhow!(err))
                 }
@@ -185,9 +185,10 @@ impl CredentialManager {
         info!("Selecting rows from sqlite_master table.");
         let mut stmt: rusqlite::Statement<'_> = connection.prepare(
             "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('Credentials', 'Metadata');")?;
-        let rows = stmt.query_map([], |row| {
-            Ok(row.get(0)?)
-        })?.filter_map(|r| r.ok()).collect::<Vec<String>>();
+        let rows = stmt
+            .query_map([], |row| row.get(0))?
+            .filter_map(|r| r.ok())
+            .collect::<Vec<String>>();
         
         if rows.is_empty() {
             return Err(CredentialError::DatabaseNotInitialized);
