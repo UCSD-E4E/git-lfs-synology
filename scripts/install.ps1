@@ -15,7 +15,6 @@ function Invoke-InstallScript {
 
     # Determine OS and Architecture
     $osPlatform = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
-    $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
 
     # Adjust the platform and architecture for the API call
     $platform = switch -Wildcard ($osPlatform) {
@@ -34,6 +33,7 @@ function Invoke-InstallScript {
     }
     else {
         # Not Windows
+        $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
         $arch = switch ($architecture) {
             "X64"  { "x86_64" }
             "Arm64" { "aarch64" }

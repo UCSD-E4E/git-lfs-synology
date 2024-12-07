@@ -207,18 +207,46 @@ impl SynologyFileStation {
     }
 
     #[tracing::instrument]
-    pub async fn login(&mut self, credential: &Credential) -> Result<(), SynologyErrorStatus> {
-        let login_url = format!(
-            "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&session=FileStation&fromat=sid",
+    pub async fn login(&mut self, credential: &Credential, enable_device_token: bool, totp: Option<String>) -> Result<Credential, SynologyErrorStatus> {
+        let device_name = format!(
+            "{}::{}",
+            hostname::get()?.to_string_lossy(),
+            "rust_synology_api"
+        );
+
+        let mut login_url = format!(
+            "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&enable_device_token={}&device_name={}&session=FileStation&fromat=sid",
             self.url,
             6,
-            credential.user,
-            encode(credential.password.as_str()) // Encode the password in case it has characters not allowed in URLs in it.
+            encode(credential.user.as_str()),
+            encode(credential.password.as_str()), // Encode the password in case it has characters not allowed in URLs in it.
+            enable_device_token,
+            device_name
         );
+
+        if let Some(did) = credential.device_id.clone() {
+            info!("Credential has device ID");
+
+            login_url = format!(
+                "{}&device_id={}",
+                login_url,
+                did
+            )
+        }
+
+        if let Some(totp) = totp {
+            info!("TOTP has been provided.");
+
+            login_url = format!(
+                "{}&otp_code={}",
+                login_url,
+                totp
+            )
+        }
 
         // Make initial request to the server.  This will fail if the user needs a TOTP.
         let response = reqwest::get(login_url).await;
-        let (mut login_result, login_error) = self.parse_data_and_error::<LoginResponse, LoginError>(response).await?;
+        let (login_result, login_error) = self.parse_data_and_error::<LoginResponse, LoginError>(response).await?;
 
         match login_error {
             Some(login_error) => 
@@ -232,28 +260,8 @@ impl SynologyFileStation {
                                     Some(errors) =>
                                         if errors.types.iter().any(|f| f.contains_key("type") && f["type"] == "otp") {
                                             info!("Server requested TOTP");
-                                            let totp = credential.totp();
-
-                                            match totp {
-                                                Some(totp) => {
-                                                    info!("Requested TOTP from TOTP command");
-
-                                                    let login_url = format!(
-                                                        "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&session=FileStation&fromat=sid&otp_code={}",
-                                                        self.url,
-                                                        6,
-                                                        credential.user,
-                                                        errors.token,
-                                                        totp
-                                                    );
-
-                                                    let response = reqwest::get(login_url).await;
-                                                    login_result= Some(self.parse::<LoginResponse>(response).await?);
-
-                                                    Ok(())
-                                                },
-                                                None => Err(SynologyErrorStatus::NoTotp)
-                                            }
+                                            
+                                            Err(SynologyErrorStatus::NoTotp)
                                         }
                                         else {
                                             Err(SynologyErrorStatus::ServerError(SynologyStatusCode::InvalidUserDoesThisFileOperation))
@@ -272,7 +280,10 @@ impl SynologyFileStation {
             Some(login_result) => {
                 self.sid = Some(login_result.sid);
 
-                Ok(())
+                let mut cred = Credential::new(credential.user.to_string(), credential.password.to_string());
+                cred.device_id = login_result.did;
+
+                Ok(cred)
             },
             None => Err(SynologyErrorStatus::UnknownError)
         }
