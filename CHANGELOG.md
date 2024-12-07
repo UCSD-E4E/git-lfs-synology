@@ -2,7 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.1.0
+## [0.2.0] - 2024-12-07
+
+### 🚀 Features
+
+- Additional readme formatting for improve readability
+- Windows install script
+- Credential manager now can store a device id
+- Use device id so that we do not need to provide a totp
+
+### 🐛 Bug Fixes
+
+- Readme formatting
+- Url in install script
+- Git-lfs-synology vs git-lfs-login
+- Set the user path variable, not the system
+- Install script login issue
+- Use a cache bust to prevent github from returning a cached result
+- Support powershell 5.1
+- Platform instead of osplatform for install script
+- Eq win
+- Don't call method that doesn't exist.
+
+## [0.1.0] - 2024-12-01
 
 ### 🚀 Features
 
@@ -68,6 +90,8 @@ All notable changes to this project will be documented in this file.
 - Use docker so that we can build both amd64 and aarch64 for ubuntu
 - We should check in cargo.lock for binaries
 - Support --version
+- Add changelog and license
+- Run clippy as part of workflow
 
 ### 🐛 Bug Fixes
 
@@ -119,6 +143,8 @@ All notable changes to this project will be documented in this file.
 - Use bash instead of sh
 - Run the container and mount the repo
 - Copy the files into the docker container during build
+- Update changelog
+- Install clippy from rustup
 
 ### 💼 Other
 
@@ -130,6 +156,7 @@ All notable changes to this project will be documented in this file.
 
 - Code cleanup
 - Remove an ignore warn
+- Appease clippy
 
 ### ◀️ Revert
 
