@@ -36,11 +36,22 @@ impl CustomTransferAgent for MainSubcommand {
             event.size.context("Size should not be null")?,
             event.oid.clone().context("oid should not be null")?);
 
-        let source_file_path = format!(
+        let mut source_file_path = format!(
             "{}/{}",
             configuration.path,
             oid
         );
+
+        let compressed_file_path = format!(
+            "{}.zstd",
+            source_file_path
+        );
+
+        let mut source_file_compressed = false;
+        if self.exists_on_remote(&compressed_file_path).await? {
+            source_file_path = compressed_file_path;
+            source_file_compressed = true;
+        }
 
         info!("Source path is \"{}\".", source_file_path);
 
@@ -59,7 +70,11 @@ impl CustomTransferAgent for MainSubcommand {
         };
 
         let file_station = self.file_station.clone().context("File Station should not be null")?;
-        let target_file_path = file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
+        let mut target_file_path = file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
+
+        if source_file_compressed {
+            target_file_path = self.uncompress_file(&target_file_path)?;
+        }
 
         info!("Download finished");
         Ok(target_file_path)
@@ -286,5 +301,25 @@ impl MainSubcommand {
     #[tracing::instrument]
     fn is_path_root(&self, path: &str) -> bool {
         path == "/" || path.is_empty()
+    }
+
+    fn uncompress_file(&self, source_path: &PathBuf) -> Result<PathBuf> {
+        if let Some(extension) = source_path.extension() {
+            if extension == ".zstd" {
+                let source_path_string = source_path.to_string_lossy();
+                let split_pos = source_path_string.char_indices().nth_back(5).context("Should have more than 5 characters.")?.0;
+                let mut target_path = PathBuf::new();
+                target_path.push(&source_path_string[..split_pos]);
+
+                let source_file = File::open(source_path)?;
+                let target_file = File::create(&target_path)?;
+
+                zstd::stream::copy_decode(source_file, target_file)?;
+
+                return Ok(target_path);
+            }
+        }
+
+        Ok(source_path.clone())
     }
 }
