@@ -1,11 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{fs::{exists, File}, path::{Path, PathBuf}};
 
 use anyhow::{Context, Result};
 use clap::ArgMatches;
 use named_lock::NamedLock;
+use tokio::fs::remove_file;
 use tracing::info;
 
-use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, GitLfsProgressReporter}, synology_api::{ProgressReporter, SynologyFileStation}};
+use crate::{configuration::Configuration, credential_manager::CredentialManager, git_lfs::{error_init, CustomTransferAgent, Event, GitLfsParser, GitLfsProgressReporter}, synology_api::{ProgressReporter, SynologyFileStation}, users_dirs::get_cache_dir};
 
 use super::Subcommand;
 
@@ -82,9 +83,8 @@ impl CustomTransferAgent for MainSubcommand {
         }?;
 
         self.file_station = Some(file_station);
-
-        let path = configuration.path.as_str();
-        match self.create_folder(path).await {
+        
+        match self.create_target_folder().await {
             Ok(_) => Ok(()),
             Err(error) => {
                 error_init(1, error.to_string().as_str())?;
@@ -108,15 +108,36 @@ impl CustomTransferAgent for MainSubcommand {
             event.size.context("Size should not be null")?,
             event.oid.clone().context("oid should not be null")?);
 
-        let source_path = event.path.clone().context("Path should not be null.")?;
-        info!("Preparing to upload file at \"{}\".", source_path);
+        let event_source_path = event.path.clone().context("Path should not be null.")?;
+        info!("Preparing to upload file at \"{}\".", event_source_path);
         info!("Pushing to server path: \"{}\".", configuration.path);
 
         let progress_reporter = StdOutProgressReporter {
             git_lfs_progress_reporter
         };
 
-        let source_path = Path::new(source_path.as_str());
+        info!("Attempting to compress the source file.");
+        let compressed_source_path = self.compress_file(&event_source_path).await?;
+
+        let source_path = Path::new(&compressed_source_path);
+        let target_path = format!(
+            "{}/{}",
+            configuration.path,
+            event.oid.clone().context("OID should not be none.")?
+        );
+
+        if self.exists_on_remote_compressed_or_uncompressed(target_path.as_str()).await? {
+            info!("Object already exists on server.");
+
+            return Ok(())
+        }
+
+        // Remove the path if the compressed source path is not the same as the source path provided by git lfs.
+        if event_source_path != compressed_source_path {
+            let path = Path::new(&compressed_source_path);
+            remove_file(path).await?;
+        }
+
         let file_station = self.file_station.clone().context("File Station should not be null")?;
         file_station.upload(source_path, event.size.context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
@@ -144,22 +165,126 @@ impl MainSubcommand {
     }
 
     #[tracing::instrument]
-    async fn create_folder(&self, path: &str) -> Result<()> {
+    async fn compress_file(&self, path: &str) -> Result<String> {
+        let source_file = Path::new(path);
+        let mut compress_file = get_cache_dir()?;
+        compress_file.push(
+            format!("{}.zstd", source_file.file_name().context("File name should not be null")?.to_string_lossy())
+        );
+
+        if exists(&compress_file)? {
+            info!("File already exists, deleting it.");
+
+            remove_file(&compress_file).await?;
+        }
+
+        let source_file = File::open(source_file)?;
+        let target_file = File::create(&compress_file)?;
+
+        zstd::stream::copy_encode(&source_file, &target_file, 0)?;
+
+        if target_file.metadata()?.len() < source_file.metadata()?.len() {
+            info!("Compressed file is not smaller.");
+
+            // Remove the file, it is not necessary to maintain this.
+            remove_file(compress_file).await?;
+
+            Ok(path.to_string())
+        }
+        else {
+            info!("Compressed file is smaller.");
+
+            Ok(compress_file.to_str().context("Compress path should not be null.")?.to_string())
+        }
+    }
+
+    #[tracing::instrument]
+    async fn create_target_folder(&self) -> Result<()> {
         let configuration = Configuration::load()?;
 
+        if self.exists_on_remote(&configuration.path).await? {
+            return Ok(()); // Exit early, handle trying to create a folder over a share.
+        }
+
         // This is a System wide, cross-process lock.
-        let lock = NamedLock::create("git-lfs-synology::MainSubcommand::create_folder")?;
+        let lock = NamedLock::create("git-lfs-synology::MainSubcommand::create_target_folder")?;
         let _guard = lock.lock()?;
 
         let file_station = self.file_station.clone().context("File Station should not be null.")?;
 
-        let path_parts = configuration.path.split('/');
-        let name = path_parts.last().context("Our path should have a name")?;
-        // We remove one extra character so that we don't have a trailing '/'.
-        let folder_path_string = configuration.path[..(configuration.path.len() - name.len() - 1)].to_string();
-        let folder_path = folder_path_string.as_str();
-        let _folders = file_station.create_folder(folder_path, name, true).await?;
+        let name = self.get_name(&configuration.path)?;
+        let folder_path = self.get_parent_path(&configuration.path)?.context("Path should not be root.")?;
+        let _folders = file_station.create_folder(folder_path.as_str(), name.as_str(), true).await?;
 
         Ok(())
+    }
+
+    #[tracing::instrument]
+    async fn exists_on_remote(&self, path: &str) -> Result<bool> {
+        if self.is_path_root(path) {
+            info!("Path is root.");
+
+            return Ok(true); // The root should always exist.  Don't need to ask the server to confirm.
+        }
+
+        let name = self.get_name(path)?;
+        let parent = self.get_parent_path(path)?.context("Path should not be root since we checked earlier.")?;
+
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+
+        if self.is_path_root(&parent) {
+            info!("Parent is root, let's get shares.");
+
+            let shares = file_station.list_share(
+                None, None, None, None, None,
+                false, false, false, false, false, false, false).await?;
+
+            return Ok(shares.shares.iter().any(|share| share.name == name));
+        }
+        else {
+            info!("Parent is not root, let's get files.");
+
+            let files = file_station.list(
+                &parent, None, None, None, None, None, None, None,
+                false, false, false, false, false, false, false).await?;
+
+            return Ok(files.files.iter().any(|file| file.name == name));
+        }
+    }
+
+    #[tracing::instrument]
+    async fn exists_on_remote_compressed_or_uncompressed(&self, path: &str) -> Result<bool> {
+        let compressed_path = format!("{}.zstd", path);
+
+        Ok(self.exists_on_remote(path).await? || self.exists_on_remote(&compressed_path).await?)
+    }
+
+    #[tracing::instrument]
+    fn get_parent_path(&self, path: &str) -> Result<Option<String>> {
+        if self.is_path_root(path) {
+            return Ok(None)
+        }
+
+        let path_parts = path.split('/');
+        let name = path_parts.last().context("Our path should have a name since it's not the root.")?;
+        // We remove one extra character so that we don't have a trailing '/'.
+        Ok(Some(path[..(path.len() - name.len() - 1)].to_string()))
+    }
+
+    #[tracing::instrument]
+    fn get_name(&self, path: &str) -> Result<String> {
+        if self.is_path_root(path) {
+            return Ok("".to_string()); // We are the root.  We don't have a name.
+        }
+
+        let path_parts = path.split('/');
+        let name = path_parts.last().context("Our path should have a name since it's not the root.")?;
+
+        Ok(name.to_string())
+    }
+
+    #[tracing::instrument]
+    fn is_path_root(&self, path: &str) -> bool {
+        path == "/" || path.is_empty()
     }
 }
