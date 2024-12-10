@@ -132,14 +132,14 @@ impl CustomTransferAgent for MainSubcommand {
             return Ok(())
         }
 
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+        file_station.upload(source_path, event.size.context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
+
         // Remove the path if the compressed source path is not the same as the source path provided by git lfs.
         if event_source_path != compressed_source_path {
             let path = Path::new(&compressed_source_path);
             remove_file(path).await?;
         }
-
-        let file_station = self.file_station.clone().context("File Station should not be null")?;
-        file_station.upload(source_path, event.size.context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
         info!("Upload finished.");
         Ok(())
