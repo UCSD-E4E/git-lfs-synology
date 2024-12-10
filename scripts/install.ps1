@@ -16,7 +16,7 @@ function Invoke-InstallScript {
     # Determine OS and Architecture
     $osPlatform = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
 
-    # Adjust the platform and architecture for the API call
+    # Adjust the platform and architecture for the downloaded package.
     $platform = switch -Wildcard ($osPlatform) {
         "*Windows*" { "win" }
         "*Linux*"   { "linux" }
@@ -51,6 +51,7 @@ function Invoke-InstallScript {
         Write-Error "$assetName is not published.  Please file an issue."
     }
 
+    # Get the target directory
     $homeDirectory = Get-Item ~
     $gitLfsSynologyDirectory = ".git-lfs-synology"
     $targetPath = Join-Path $homeDirectory $gitLfsSynologyDirectory
