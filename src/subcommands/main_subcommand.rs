@@ -178,7 +178,7 @@ impl MainSubcommand {
             remove_file(&compress_file).await?;
         }
 
-        let source_file = File::open(&source_file)?;
+        let source_file = File::open(source_file)?;
         let target_file = File::create(&compress_file)?;
 
         zstd::stream::copy_encode(&source_file, &target_file, 0)?;
