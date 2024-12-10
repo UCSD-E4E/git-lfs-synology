@@ -9,7 +9,7 @@ use urlencoding::encode;
 
 use crate::credential_manager::Credential;
 
-use super::{responses::{CreateFolderResponse, LoginError, LoginResponse, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode}, ProgressReporter};
+use super::{responses::{CreateFolderResponse, ListResponse, LoginError, LoginResponse, SynologyError, SynologyErrorStatus, SynologyResult, SynologyStatusCode}, ProgressReporter};
 
 #[derive(Clone, Debug)]
 pub struct SynologyFileStation {
@@ -27,7 +27,7 @@ impl SynologyFileStation {
     }
 
     #[tracing::instrument]
-    async fn get<T: DeserializeOwned>(&self, api: &str, method: &str, version: u32, parameters: &HashMap<&str, &str>) -> Result<T, SynologyErrorStatus> {
+    async fn get<T: DeserializeOwned>(&self, api: &str, method: &str, version: u32, parameters: &HashMap<&str, String>) -> Result<T, SynologyErrorStatus> {
         match &self.sid {
             Some(sid) => {
                 info!("Found sid, continuing.");
@@ -130,10 +130,10 @@ impl SynologyFileStation {
     pub async fn create_folder(&self, folder_path: &str, name: &str, force_parent: bool) -> Result<CreateFolderResponse, SynologyErrorStatus> {
         let force_parent_string = force_parent.to_string();
 
-        let mut parameters = HashMap::<&str, &str>::new();
-        parameters.insert("folder_path", folder_path);
-        parameters.insert("name", name);
-        parameters.insert("force_parent", force_parent_string.as_str());
+        let mut parameters = HashMap::<&str, String>::new();
+        parameters.insert("folder_path", folder_path.to_string());
+        parameters.insert("name", name.to_string());
+        parameters.insert("force_parent", force_parent_string);
 
         self.get("SYNO.FileStation.CreateFolder", "create", 2, &parameters).await
     }
@@ -204,6 +204,94 @@ impl SynologyFileStation {
                 }
                 None => Err(SynologyErrorStatus::NotLoggedIn)
             }
+    }
+
+    #[allow(clippy::too_many_arguments)] // Allow this so that we better match the Synology API.
+    #[tracing::instrument]
+    pub async fn list(
+        &self,
+        folder_path: &str,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        sort_by: Option<String>,
+        sort_direction: Option<String>,
+        pattern: Option<String>,
+        file_type: Option<String>,
+        goto_path: Option<String>,
+        include_real_path: bool,
+        include_size: bool,
+        include_owner: bool,
+        include_time: bool,
+        include_perm: bool,
+        include_mount_point_type: bool,
+        include_type: bool
+    ) -> Result<ListResponse, SynologyErrorStatus> {
+        let mut parameters = HashMap::<&str, String>::new();
+        parameters.insert("folder_path", folder_path.to_string());
+
+        if let Some(offset) = offset {
+            parameters.insert("offset", offset.to_string());
+        }
+
+        if let Some(limit) = limit {
+            parameters.insert("limit", limit.to_string());
+        }
+
+        if let Some(sort_by) = sort_by {
+            parameters.insert("sort_by", sort_by);
+        }
+
+        if let Some(sort_direction) = sort_direction {
+            parameters.insert("sort_direction", sort_direction);
+        }
+
+        if let Some(pattern) = pattern {
+            parameters.insert("pattern", pattern);
+        }
+
+        if let Some(file_type) = file_type {
+            parameters.insert("filetype", file_type);
+        }
+
+        if let Some(goto_path) = goto_path {
+            parameters.insert("goto_path", goto_path);
+        }
+
+        let mut additional: String = String::new();
+
+        if include_real_path {
+            additional = format!("{},real_path", additional);
+        }
+
+        if include_size {
+            additional = format!("{},size", additional);
+        }
+
+        if include_owner {
+            additional = format!("{},owner", additional);
+        }
+
+        if include_time {
+            additional = format!("{},time", additional);
+        }
+
+        if include_perm {
+            additional = format!("{},perm", additional);
+        }
+
+        if include_mount_point_type {
+            additional = format!("{},mount_point_type", additional);
+        }
+
+        if include_type {
+            additional = format!("{},type", additional);
+        }
+
+        if additional.len() > 0 {
+            parameters.insert("additional", additional[1..].to_string());
+        }
+
+        self.get("SYNO.FileStation.List", "list", 2, &parameters).await
     }
 
     #[tracing::instrument]

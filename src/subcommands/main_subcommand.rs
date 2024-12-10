@@ -82,9 +82,8 @@ impl CustomTransferAgent for MainSubcommand {
         }?;
 
         self.file_station = Some(file_station);
-
-        let path = configuration.path.as_str();
-        match self.create_folder(path).await {
+        
+        match self.create_target_folder().await {
             Ok(_) => Ok(()),
             Err(error) => {
                 error_init(1, error.to_string().as_str())?;
@@ -117,6 +116,18 @@ impl CustomTransferAgent for MainSubcommand {
         };
 
         let source_path = Path::new(source_path.as_str());
+        let target_path = format!(
+            "{}/{}",
+            configuration.path,
+            event.oid.clone().context("OID should not be none.")?
+        );
+
+        if self.exists_on_remote(target_path.as_str()).await? {
+            info!("Object already exists on server.");
+
+            return Ok(())
+        }
+
         let file_station = self.file_station.clone().context("File Station should not be null")?;
         file_station.upload(source_path, event.size.context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
@@ -144,21 +155,67 @@ impl MainSubcommand {
     }
 
     #[tracing::instrument]
-    async fn create_folder(&self, path: &str) -> Result<()> {
+    fn get_parent_path(&self, path: &str) -> Result<Option<String>> {
+        if path == "/" || path == "" {
+            return Ok(None)
+        }
+
+        let path_parts = path.split('/');
+        let name = path_parts.last().context("Our path should have a name since it's not the root.")?;
+        // We remove one extra character so that we don't have a trailing '/'.
+        Ok(Some(path[..(path.len() - name.len() - 1)].to_string()))
+    }
+
+    #[tracing::instrument]
+    fn get_name(&self, path: &str) -> Result<String> {
+        if path == "/" || path == "" {
+            return Ok("".to_string()); // We are the root.  We don't have a name.
+        }
+
+        let path_parts = path.split('/');
+        let name = path_parts.last().context("Our path should have a name since it's not the root.")?;
+
+        Ok(name.to_string())
+    }
+
+    #[tracing::instrument]
+    async fn exists_on_remote(&self, path: &str) -> Result<bool> {
+        if path == "/" || path == "" {
+            info!("Path is root.");
+
+            return Ok(true); // The root should always exist.  Don't need to ask the server to confirm.
+        }
+
+        let name = self.get_name(path)?;
+        let parent = self.get_parent_path(path)?.context("Path should not be root since we checked earlier.")?;
+
+        let file_station = self.file_station.clone().context("File Station should not be null")?;
+
+        // if parent is root, ask for list of shares then check if path is one of the shares
+        // else if parent is not root, ask for files in parent and check if path is one of the files
+
+        //let list = file_station.list(path).await?;
+
+        Ok(false)
+    }
+
+    #[tracing::instrument]
+    async fn create_target_folder(&self) -> Result<()> {
         let configuration = Configuration::load()?;
 
+        if self.exists_on_remote(&configuration.path).await? {
+            return Ok(()); // Exit early, handle trying to create a folder over a share.
+        }
+
         // This is a System wide, cross-process lock.
-        let lock = NamedLock::create("git-lfs-synology::MainSubcommand::create_folder")?;
+        let lock = NamedLock::create("git-lfs-synology::MainSubcommand::create_target_folder")?;
         let _guard = lock.lock()?;
 
         let file_station = self.file_station.clone().context("File Station should not be null.")?;
 
-        let path_parts = configuration.path.split('/');
-        let name = path_parts.last().context("Our path should have a name")?;
-        // We remove one extra character so that we don't have a trailing '/'.
-        let folder_path_string = configuration.path[..(configuration.path.len() - name.len() - 1)].to_string();
-        let folder_path = folder_path_string.as_str();
-        let _folders = file_station.create_folder(folder_path, name, true).await?;
+        let name = self.get_name(&configuration.path)?;
+        let folder_path = self.get_parent_path(&configuration.path)?.context("Path should not be root.")?;
+        let _folders = file_station.create_folder(folder_path.as_str(), name.as_str(), true).await?;
 
         Ok(())
     }

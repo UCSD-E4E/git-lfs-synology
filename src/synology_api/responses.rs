@@ -140,3 +140,77 @@ pub struct FolderModel {
     pub name: String,
     pub path: String
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct ListResponse {
+    pub total: u64,
+    pub offset: u64,
+    pub files: Vec<File>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct File {
+    pub path: String,
+    pub name: String,
+    pub isdir: bool,
+    pub children: Option<FileChildren>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileChildren {
+    total: u32,
+    offeset: i32,
+    files: Vec<File>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileAdditional {
+    pub real_path: Option<String>,
+    pub size: Option<u64>,
+    pub owner: Option<FileOwner>,
+    pub time: Option<FileTime>,
+    pub perm: Option<FilePerm>,
+    pub mount_point_time: Option<String>,
+    #[serde(alias = "type")]
+    pub extension: Option<String>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileOwner {
+    pub user: String,
+    pub group: String,
+    pub uid: i32,
+    pub gid: i32
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileTime {
+    pub atime: u64,
+    pub mtime: u64,
+    pub ctime: u64,
+    pub crtime: u64
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FilePerm {
+    pub posix: u32,
+    pub is_acl_mode: bool,
+    pub acl: FileAcl
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileAcl {
+    pub append: bool,
+    pub del: bool,
+    pub exec: bool,
+    pub read: bool,
+    pub write: bool
+}
