@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2024-12-10
+
+### 🚀 Features
+
+- Synology api for listing structure.
+- Check that file exists before uploading it.
+
+### ⚙️ Miscellaneous Tasks
+
+- Release
+- Fix clippy errors
+- Update readme
+
 ## [0.2.0] - 2024-12-07
 
 ### 🚀 Features
