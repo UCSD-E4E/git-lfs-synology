@@ -140,3 +140,133 @@ pub struct FolderModel {
     pub name: String,
     pub path: String
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct ListResponse {
+    pub total: u64,
+    pub offset: u64,
+    pub files: Vec<File>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct File {
+    pub path: String,
+    pub name: String,
+    pub isdir: bool,
+    pub children: Option<FileChildren>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileChildren {
+    total: u32,
+    offeset: i32,
+    files: Vec<File>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FileAdditional {
+    pub real_path: Option<String>,
+    pub size: Option<u64>,
+    pub owner: Option<Owner>,
+    pub time: Option<Time>,
+    pub perm: Option<FilePerm>,
+    pub mount_point_time: Option<String>,
+    #[serde(alias = "type")]
+    pub extension: Option<String>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct Owner {
+    pub user: String,
+    pub group: String,
+    pub uid: i32,
+    pub gid: i32
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct Time {
+    pub atime: u64,
+    pub mtime: u64,
+    pub ctime: u64,
+    pub crtime: u64
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct FilePerm {
+    pub posix: u32,
+    pub is_acl_mode: bool,
+    pub acl: Acl
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct Acl {
+    pub append: bool,
+    pub del: bool,
+    pub exec: bool,
+    pub read: bool,
+    pub write: bool
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct ListShareResponse {
+    pub total: u64,
+    pub offset: u64,
+    pub shares: Vec<SharedFolder>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SharedFolder {
+    pub path: String,
+    pub name: String,
+    pub additional: Option<SharedFolderAdditional>
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SharedFolderAdditional {
+    pub real_path: Option<String>,
+    pub owner: Option<String>,
+    pub time: Option<Time>,
+    pub perm: Option<SharedFolderPerm>,
+    pub mount_point_type: Option<String>,
+    pub volume_status: Option<VolumeStatus>
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct SharedFolderPerm {
+    pub share_right: String,
+    pub posix: u32,
+    pub adv_right: AdvRight,
+    pub acl_enable: bool,
+    pub is_acl_mode: bool,
+    pub acl: Acl
+}
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct AdvRight {
+    pub disable_download: bool,
+    pub disable_list: bool,
+    pub disable_modify: bool
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde[rename_all = "snake_case"]]
+pub struct VolumeStatus {
+    pub freespace: u64,
+    pub totalspace: u64,
+    pub readonly: bool
+}
