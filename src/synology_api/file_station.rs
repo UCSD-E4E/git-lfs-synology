@@ -287,7 +287,7 @@ impl SynologyFileStation {
             additional = format!("{},type", additional);
         }
 
-        if additional.len() > 0 {
+        if !additional.is_empty() {
             parameters.insert("additional", additional[1..].to_string());
         }
 
@@ -363,7 +363,7 @@ impl SynologyFileStation {
             additional = format!("{},volume_status", additional);
         }
 
-        if additional.len() > 0 {
+        if !additional.is_empty() {
             parameters.insert("additional", additional[1..].to_string());
         }
 
