@@ -155,8 +155,13 @@ impl MainSubcommand {
     }
 
     #[tracing::instrument]
+    fn is_path_root(&self, path: &str) -> bool {
+        path == "/" || path == ""
+    }
+
+    #[tracing::instrument]
     fn get_parent_path(&self, path: &str) -> Result<Option<String>> {
-        if path == "/" || path == "" {
+        if self.is_path_root(path) {
             return Ok(None)
         }
 
@@ -168,7 +173,7 @@ impl MainSubcommand {
 
     #[tracing::instrument]
     fn get_name(&self, path: &str) -> Result<String> {
-        if path == "/" || path == "" {
+        if self.is_path_root(path) {
             return Ok("".to_string()); // We are the root.  We don't have a name.
         }
 
@@ -180,7 +185,7 @@ impl MainSubcommand {
 
     #[tracing::instrument]
     async fn exists_on_remote(&self, path: &str) -> Result<bool> {
-        if path == "/" || path == "" {
+        if self.is_path_root(path) {
             info!("Path is root.");
 
             return Ok(true); // The root should always exist.  Don't need to ask the server to confirm.
@@ -191,12 +196,20 @@ impl MainSubcommand {
 
         let file_station = self.file_station.clone().context("File Station should not be null")?;
 
-        // if parent is root, ask for list of shares then check if path is one of the shares
-        // else if parent is not root, ask for files in parent and check if path is one of the files
+        if self.is_path_root(&parent) {
+            let shares = file_station.list_share(
+                None, None, None, None, None,
+                false, false, false, false, false, false, false).await?;
 
-        //let list = file_station.list(path).await?;
+            return Ok(shares.shares.iter().any(|share| share.name == name));
+        }
+        else {
+            let files = file_station.list(
+                &parent, None, None, None, None, None, None, None,
+                false, false, false, false, false, false, false).await?;
 
-        Ok(false)
+            return Ok(files.files.iter().any(|file| file.name == name));
+        }
     }
 
     #[tracing::instrument]
