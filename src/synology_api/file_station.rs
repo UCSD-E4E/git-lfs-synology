@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::{Path, PathBuf}};
+use std::{collections::HashMap, path::{Path, PathBuf}, time::Duration};
 
 use num_traits::FromPrimitive;
 use reqwest::{Error, Response, StatusCode};
@@ -525,6 +525,7 @@ impl SynologyFileStation {
 
                 let response = reqwest::Client::new()
                     .post(url)
+                    .timeout(Duration::from_secs(30))
                     .multipart(form)
                     .send()
                     .await;
