@@ -131,10 +131,6 @@ impl CustomTransferAgent for MainSubcommand {
             git_lfs_progress_reporter
         };
 
-        info!("Attempting to compress the source file.");
-        let compressed_source_path = self.compress_file(&event_source_path).await?;
-
-        let source_path = Path::new(&compressed_source_path);
         let target_path = format!(
             "{}/{}",
             configuration.path,
@@ -147,6 +143,10 @@ impl CustomTransferAgent for MainSubcommand {
             return Ok(())
         }
 
+        info!("Attempting to compress the source file.");
+        let compressed_source_path = self.compress_file(&event_source_path).await?;
+
+        let source_path = Path::new(&compressed_source_path);
         let file_station = self.file_station.clone().context("File Station should not be null")?;
         file_station.upload(source_path, event.size.context("Size should not be null")?, configuration.path.as_str(), false, false, None, None, None, Some(progress_reporter)).await?;
 
