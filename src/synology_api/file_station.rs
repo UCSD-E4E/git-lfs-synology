@@ -384,7 +384,7 @@ impl SynologyFileStation {
             6,
             encode(credential.user.as_str()),
             encode(credential.password.as_str()), // Encode the password in case it has characters not allowed in URLs in it.
-            enable_device_token,
+            if enable_device_token { "yes "} else { "no" },
             device_name
         );
 
