@@ -44,7 +44,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force; Invoke-Expression (Invoke-WebR
 ### Cargo
 Install all the development dependencies and then execute the following.
 ```bash
-cargo install --git https://github.com/UCSD-E4E/git-lfs-synology.git git-lfs-synology
+cargo install --git https://github.com/UCSD-E4E/git-lfs-synology.git git-lfs-synology --branch main
 ```
 
 ## Uninstalling
