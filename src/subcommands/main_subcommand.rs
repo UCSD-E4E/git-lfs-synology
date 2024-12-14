@@ -314,7 +314,7 @@ impl MainSubcommand {
         if let Some(extension) = source_path.extension() {
             info!("Found extension: {}", extension.to_string_lossy());
 
-            if extension == ".zstd" {
+            if extension == "zstd" {
                 info!("Found zstd compression, uncompressing.");
 
                 let source_path_string = source_path.to_string_lossy();
