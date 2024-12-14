@@ -73,7 +73,7 @@ impl CustomTransferAgent for MainSubcommand {
         let mut target_file_path = file_station.download(source_file_path.as_str(), target_directory_path.as_path(), Some(progress_reporter)).await?;
 
         if source_file_compressed {
-            target_file_path = self.uncompress_file(&target_file_path)?;
+            target_file_path = self.uncompress_file(&target_file_path).await?;
         }
 
         info!("Download finished");
@@ -309,9 +309,14 @@ impl MainSubcommand {
         path == "/" || path.is_empty()
     }
 
-    fn uncompress_file(&self, source_path: &PathBuf) -> Result<PathBuf> {
+    #[tracing::instrument]
+    async fn uncompress_file(&self, source_path: &PathBuf) -> Result<PathBuf> {
         if let Some(extension) = source_path.extension() {
+            info!("Found extension: {}", extension.to_string_lossy());
+
             if extension == ".zstd" {
+                info!("Found zstd compression, uncompressing.");
+
                 let source_path_string = source_path.to_string_lossy();
                 let split_pos = source_path_string.char_indices().nth_back(5).context("Should have more than 5 characters.")?.0;
                 let mut target_path = PathBuf::new();
@@ -321,6 +326,8 @@ impl MainSubcommand {
                 let target_file = File::create(&target_path)?;
 
                 zstd::stream::copy_decode(source_file, target_file)?;
+
+                remove_file(source_path).await?;
 
                 return Ok(target_path);
             }
