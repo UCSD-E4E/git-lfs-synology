@@ -379,14 +379,20 @@ impl SynologyFileStation {
         );
 
         let mut login_url = format!(
-            "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&enable_device_token={}&device_name={}&session=FileStation&fromat=sid",
+            "{}/webapi/entry.cgi?api=SYNO.API.Auth&version={}&method=login&account={}&passwd={}&device_name={}&session=FileStation&fromat=sid",
             self.url,
             6,
-            encode(credential.user.as_str()),
-            encode(credential.password.as_str()), // Encode the password in case it has characters not allowed in URLs in it.
-            if enable_device_token { "yes "} else { "no" },
-            device_name
+            encode(&credential.user),
+            encode(&credential.password), // Encode the password in case it has characters not allowed in URLs in it.
+            encode(&device_name)
         );
+
+        if enable_device_token {
+            login_url = format!(
+                "{}&enable_device_token=yes",
+                login_url
+            )
+        }
 
         if let Some(did) = credential.device_id.clone() {
             info!("Credential has device ID");
