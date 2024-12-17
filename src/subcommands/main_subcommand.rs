@@ -2,7 +2,6 @@ use std::{fs::{exists, File}, path::{Path, PathBuf}};
 
 use anyhow::{Context, Result};
 use clap::ArgMatches;
-use gix_discover::repository;
 use named_lock::NamedLock;
 use tokio::fs::remove_file;
 use tracing::info;
