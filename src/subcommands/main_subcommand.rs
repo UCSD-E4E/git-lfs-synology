@@ -2,6 +2,7 @@ use std::{fs::{exists, File}, path::{Path, PathBuf}};
 
 use anyhow::{Context, Result};
 use clap::ArgMatches;
+use gix_discover::repository;
 use named_lock::NamedLock;
 use tokio::fs::remove_file;
 use tracing::info;
@@ -29,6 +30,13 @@ pub struct MainSubcommand {
 impl CustomTransferAgent for MainSubcommand {
     #[tracing::instrument]
     async fn download(&mut self, event: &Event) -> Result<PathBuf> {
+        let mut current_path = PathBuf::new();
+        current_path.push("./");
+        let (repository, _) = gix_discover::upwards(&current_path)?;
+        let (repository_path, _) = repository.into_repository_and_work_tree_directories();
+
+        info!("Found repository path: \"{}\".", repository_path.as_os_str().to_string_lossy());
+
         let configuration = Configuration::load()?;
         let oid = event.oid.clone().context("OID should not be null")?;
 
@@ -56,8 +64,7 @@ impl CustomTransferAgent for MainSubcommand {
         info!("Source path is \"{}\".", source_file_path);
 
         let mut target_directory_path = PathBuf::new();
-        target_directory_path.push(".");
-        target_directory_path.push(".git");
+        target_directory_path.push(repository_path);
         target_directory_path.push("lfs");
         target_directory_path.push("objects");
         target_directory_path.push(&oid[..2]);
