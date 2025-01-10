@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 🚀 Features
+
+- Compress files if they are smaller
+- Start of install script for *nix
+- Handle downloading compressed content
+- Additional logging for uncompression.
+- Support git submodules
+
+### 🐛 Bug Fixes
+
+- Remove the file after upload.
+- 30 second timeout on update
+- Don't compress file if it already exists
+- Lock before upload to ensure only one client is uploading at once
+- Readme
+- Remember totp correctly
+- Bug in login preventing totp from being saved.
+- Use proper extension. rust doesn't return extensions with '.'
+- Clippy errors
+
+### ⚙️ Miscellaneous Tasks
+
+- Prepare release
+- Fix clippy errors
+- Fix clippy errors
+
 ## [0.3.0] - 2024-12-10
 
 ### 🚀 Features
