@@ -8,7 +8,7 @@ aead = { version = "0.5.2", features = ["std"] }
 aes-gcm = "0.10.3"
 anyhow = "1.0.95"
 app_dirs2 = "2.5.5"
-clap = { version = "4.5.23", features = ["cargo"] }
+clap = { version = "4.5.28", features = ["cargo"] }
 educe = "0.6.0"
 futures-macro = "0.3.31"
 futures-util = "0.3.31"
